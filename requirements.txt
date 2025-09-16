@@ -1,0 +1,7 @@
+streamlit
+pyyaml
+pillow
+pandas
+numpy
+ezdxf
+openai
