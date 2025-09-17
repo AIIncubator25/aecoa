@@ -78,6 +78,14 @@ def build_result_bundle(yaml_text: Optional[str], extracted: Dict[str, Any]) -> 
     columns = schema.get('columns_pretty', STANDARD_CSV_SCHEMA['columns_pretty'])
     df = pd.DataFrame(df_rows)
     
+    # Fix mixed data types to prevent PyArrow serialization errors
+    # Convert all columns to string first to handle mixed types
+    for col in df.columns:
+        df[col] = df[col].astype(str)
+    
+    # Replace pandas NaN representations with empty strings
+    df = df.replace(['nan', 'None', 'NaN'], '', regex=False)
+    
     # Reorder columns to match the expected order
     if len(columns) == len(df.columns):
         df.columns = columns

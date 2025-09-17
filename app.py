@@ -294,7 +294,33 @@ def main():
                                     else:
                                         st.error(f"❌ API test failed: {response.status_code} - {response.text}")
                                 elif provider == "GovTech":
-                                    st.info("GovTech API test not implemented yet")
+                                    # Test GovTech API using chat completions endpoint
+                                    url = "https://llmaas.govtext.gov.sg/gateway/openai/deployments/gpt-4/chat/completions"
+                                    headers = {
+                                        "api-key": api_key,
+                                        "Content-Type": "application/json"
+                                    }
+                                    test_payload = {
+                                        "messages": [{"role": "user", "content": "Hello"}],
+                                        "max_tokens": 5,
+                                        "temperature": 0.0
+                                    }
+                                    response = requests.post(url, headers=headers, json=test_payload, timeout=30)
+                                    if response.status_code == 200:
+                                        st.success("✅ GovTech API key is valid and working!")
+                                    elif response.status_code == 401:
+                                        st.error("❌ Invalid GovTech API key")
+                                    elif response.status_code == 403:
+                                        st.error("❌ GovTech API key lacks permissions")
+                                    elif response.status_code == 429:
+                                        st.error("❌ GovTech API rate limit exceeded")
+                                    else:
+                                        try:
+                                            error_info = response.json() if response.text else {}
+                                            error_msg = error_info.get('error', {}).get('message', response.text[:200])
+                                            st.error(f"❌ GovTech API error ({response.status_code}): {error_msg}")
+                                        except:
+                                            st.error(f"❌ GovTech API error: {response.status_code} - {response.text[:200]}")
                             except Exception as e:
                                 st.error(f"❌ API test error: {str(e)}")
                 else:
@@ -395,7 +421,7 @@ export {provider.upper()}_API_KEY="your-api-key-here"
                 st.metric("Not Found", metrics['not_found'], delta=f"{metrics['not_found_rate']:.1f}%")
             
             # Full comparison table
-            st.dataframe(st.session_state.comparisons_df, use_container_width=True)
+            st.dataframe(st.session_state.comparisons_df, use_container_width=True, hide_index=True)
             
             # Download button
             csv_data = st.session_state.comparisons_df.to_csv(index=False)

@@ -57,27 +57,23 @@ class ParameterDefinitionAgent:
             else:
                 system_prompt = (
                     "You are an expert AI agent specializing in parsing engineering and regulatory documents in YAML format. "
-                    "Your primary goal is to extract a list of parameter templates. Each template should be a self-contained object."
+                    "Your primary goal is to extract a list of parameter templates. Each template should be a self-contained object. "
+                    "CRITICAL: You must respond ONLY with valid JSON format - no markdown, no explanations, just pure JSON."
                 )
                 user_prompt = (
-                    f"Analyze the following YAML content and extract all parameter templates into a list of JSON objects. Each object represents a distinct parameter (a row).\n\n"
+                    f"Extract parameter templates from this YAML content into a JSON object with 'parameters' array.\n\n"
                     f"YAML CONTENT:\n```yaml\n{yaml_text}\n```\n\n"
-                    f"IMPORTANT INSTRUCTIONS:\n"
-                    f"1.  Scan the YAML for objects that define measurable quantities (parameter templates).\n"
-                    f"2.  A parameter template is identifiable by its contents, typically having 'source.description' and 'unit_conversion.unit' keys.\n"
-                    f"3.  The parameter's name is the key of the template object itself (e.g., 'gfa_m2').\n"
-                    f"4.  For each parameter template you find, create one complete JSON object containing all its details.\n"
-                    f"5.  The fields for each object should be 'parameter' (the name), 'description', 'unit', and 'value' (which should be an empty string).\n"
-                    f"6.  Do NOT group parameters by their attributes (like putting all descriptions in one list). Each object must be complete.\n"
-                    f"7.  Return a single JSON object with a 'parameters' key. The value of this key must be an array of the parameter objects you created.\n\n"
-                    f"Example of the required row-based output format:\n"
+                    f"REQUIREMENTS:\n"
+                    f"1. Find objects that define measurable quantities (have 'source.description' and 'unit_conversion.unit' keys)\n"
+                    f"2. Parameter name = object key (e.g., 'gfa_m2')\n"
+                    f"3. Extract: parameter name, description, unit, value (empty string)\n"
+                    f"4. Return ONLY this JSON structure:\n"
                     f"{{\n"
                     f'  "parameters": [\n'
-                    f'    {{ "parameter": "gfa_m2", "description": "Gross Floor Area (project input)", "unit": "m²", "value": "" }},\n'
-                    f'    {{ "parameter": "hs_enclosed_volume_m3", "description": "Entire enclosed HS volume (2.10(b))", "unit": "m³", "value": "" }},\n'
-                    f'    {{ "parameter": "hs_ceiling_slab_thickness_mm", "description": "HS ceiling slab thickness", "unit": "mm", "value": "" }}\n'
+                    f'    {{"parameter": "name", "description": "desc", "unit": "unit", "value": ""}}\n'
                     f"  ]\n"
-                    f"}}"
+                    f"}}\n\n"
+                    f"NO other text, explanations, or markdown - ONLY the JSON object."
                 )
 
             self.prompt_log.append({"system": system_prompt, "user": user_prompt, "timestamp": pd.Timestamp.now().isoformat()})
@@ -86,6 +82,8 @@ class ParameterDefinitionAgent:
                 result = self._call_openai(system_prompt, user_prompt, selected_api_key)
             elif self.provider == "GovTech":
                 result = self._call_govtech(system_prompt, user_prompt, selected_api_key)
+            elif self.provider == "Ollama":
+                result = self._call_ollama(system_prompt, user_prompt, selected_api_key)
             else:
                 result = {"error": f"Provider {self.provider} not supported in Agent 1"}
 
@@ -222,7 +220,13 @@ class ParameterDefinitionAgent:
     def _call_govtech(self, system_prompt: str, user_prompt: str, api_key: Optional[str]) -> Dict[str, Any]:
         try:
             import requests
-            url = f"https://llmaas.govtext.gov.sg/gateway/openai/deployments/{self.model}/chat/completions"
+            
+            # Ensure we use a compatible model for GovTech
+            govtech_model = self.model
+            if govtech_model not in ['gpt-4', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4o-mini']:
+                govtech_model = 'gpt-4'  # Default to gpt-4 for compatibility
+            
+            url = f"https://llmaas.govtext.gov.sg/gateway/openai/deployments/{govtech_model}/chat/completions"
             headers = {"api-key": api_key, "Content-Type": "application/json"}
             payload = {
                 "messages": [
@@ -232,15 +236,61 @@ class ParameterDefinitionAgent:
                 "max_tokens": 4000,
                 "temperature": 0.1,
             }
+            
+            # Add response_format for JSON only for compatible models
+            if govtech_model in ['gpt-4', 'gpt-4o', 'gpt-4o-mini']:
+                payload["response_format"] = {"type": "json_object"}
+            
             r = requests.post(url, headers=headers, json=payload, timeout=60)
             r.raise_for_status()
-            content = r.json()["choices"][0]["message"]["content"] or ""
+            
+            response_data = r.json()
+            content = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            
+            if not content:
+                return {"error": "GovTech returned empty response"}
+                
             parsed = self._parse_json_response(content)
             if parsed is None:
                 return {"error": f"GovTech returned non-JSON response", "raw": content[:2000]}
             return parsed
         except Exception as e:
             return {"error": f"GovTech call failed: {str(e)}"}
+
+    def _call_ollama(self, system_prompt: str, user_prompt: str, api_key: Optional[str]) -> Dict[str, Any]:
+        """Call Ollama local API"""
+        try:
+            import requests
+            # Combine system and user prompts for Ollama
+            combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+            
+            url = "http://localhost:11434/api/generate"
+            payload = {
+                "model": self.model,
+                "prompt": combined_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 4000,
+                }
+            }
+            
+            r = requests.post(url, json=payload, timeout=120)
+            r.raise_for_status()
+            
+            response_data = r.json()
+            content = response_data.get("response", "")
+            
+            if not content:
+                return {"error": "Ollama returned empty response"}
+            
+            parsed = self._parse_json_response(content)
+            if parsed is None:
+                return {"error": f"Ollama returned non-JSON response", "raw": content[:2000]}
+            return parsed
+            
+        except Exception as e:
+            return {"error": f"Ollama call failed: {str(e)}. Make sure Ollama is running and the model '{self.model}' is available."}
 
     def _parse_json_response(self, content: str) -> Optional[Dict[str, Any]]:
         if not content or not isinstance(content, str):
@@ -266,7 +316,7 @@ class ParameterDefinitionAgent:
         except json.JSONDecodeError:
             pass
             
-        # 2) Try with code fence removal
+        # 2) Try with code fence removal  
         clean_text = self._strip_code_fences(text)
         try:
             obj = json.loads(clean_text)
@@ -282,21 +332,33 @@ class ParameterDefinitionAgent:
         except json.JSONDecodeError:
             pass
             
-        # 3) Extract JSON object by balanced braces
-        brace_block = self._extract_balanced_block(text, "{", "}")
-        if brace_block:
-            try:
-                obj = json.loads(brace_block)
-                if isinstance(obj, dict):
-                    if "parameters" not in obj and any(k in obj for k in ["rows", "items", "data"]):
-                        for param_key in ["rows", "items", "data"]:
-                            if param_key in obj and isinstance(obj[param_key], list):
-                                obj["parameters"] = obj[param_key]
-                                break
-                    return obj
-            except json.JSONDecodeError:
-                pass
-                
+        # 3) Try to extract only the JSON part from mixed content
+        import re
+        
+        # Look for JSON object patterns
+        json_patterns = [
+            r'\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}',  # Nested braces
+            r'\{[^}]*"parameters"[^}]*\[[^\]]*\][^}]*\}',         # parameters array pattern
+        ]
+        
+        for pattern in json_patterns:
+            matches = re.findall(pattern, text, re.DOTALL)
+            for match in matches:
+                try:
+                    obj = json.loads(match.strip())
+                    if isinstance(obj, dict):
+                        # Ensure parameters field exists
+                        if "parameters" not in obj and any(k in obj for k in ["rows", "items", "data"]):
+                            for param_key in ["rows", "items", "data"]:
+                                if param_key in obj and isinstance(obj[param_key], list):
+                                    obj["parameters"] = obj[param_key]
+                                    break
+                        # Validate that we have parameters
+                        if "parameters" in obj and isinstance(obj["parameters"], list):
+                            return obj
+                except json.JSONDecodeError:
+                    continue
+                    
         # 4) Extract JSON array by balanced brackets with parameter wrapping
         array_block = self._extract_balanced_block(text, "[", "]")
         if array_block:
@@ -304,22 +366,6 @@ class ParameterDefinitionAgent:
                 arr = json.loads(array_block)
                 if isinstance(arr, list) and all(isinstance(item, dict) for item in arr[:3]):
                     return {"parameters": arr, "extraction_summary": {"structure": "extracted array"}}
-            except json.JSONDecodeError:
-                pass
-                
-        # 5) Last resort - try to find JSON object with regex
-        import re
-        json_match = re.search(r'\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}', text)
-        if json_match:
-            try:
-                obj = json.loads(json_match.group(0))
-                if isinstance(obj, dict):
-                    if "parameters" not in obj and any(k in obj for k in ["rows", "items", "data"]):
-                        for param_key in ["rows", "items", "data"]:
-                            if param_key in obj and isinstance(obj[param_key], list):
-                                obj["parameters"] = obj[param_key]
-                                break
-                    return obj
             except json.JSONDecodeError:
                 pass
                 

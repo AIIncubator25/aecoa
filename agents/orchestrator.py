@@ -340,27 +340,80 @@ class AgenticWorkflowOrchestrator:
                 df,
                 use_container_width=True,
                 num_rows="dynamic",
-                key="parameter_editor"
+                key="parameter_editor",
+                hide_index=True
             )
             
-            # Single button to save and proceed
-            if st.button("✅ Save and Proceed to Drawing Analysis", type="primary", use_container_width=True):
-                try:
-                    edited_df.to_csv("parameters.csv", index=False)
-                    st.session_state["checkpoint_1_decision"] = "approved"
-                    st.session_state["edited_parameters_df"] = edited_df
-                    
-                    self.log_execution("checkpoint_1_approved", {
-                        "step": 1,
-                        "final_count": len(edited_df),
-                        "user_modified": not edited_df.equals(df)
-                    })
-                    
-                    st.success(f"Parameters saved to 'parameters.csv'. Continuing to Agent 2...")
-                    return True
-                except Exception as e:
-                    st.error(f"Failed to save parameters: {e}")
-                    return False
+            # Check if parameters have been saved already
+            params_saved_key = f"checkpoint_1_params_saved"
+            params_saved = st.session_state.get(params_saved_key, False)
+            
+            if not params_saved:
+                # Show primary button for first save
+                save_button = st.button(
+                    "✅ Save Parameters & Proceed to Drawing Analysis", 
+                    type="primary", 
+                    use_container_width=True
+                )
+                if save_button:
+                    try:
+                        # Save the CSV file
+                        csv_path = "parameters.csv"
+                        edited_df.to_csv(csv_path, index=False)
+                        
+                        # Update session state
+                        st.session_state["checkpoint_1_decision"] = "approved"
+                        st.session_state["edited_parameters_df"] = edited_df
+                        st.session_state[params_saved_key] = True
+                        
+                        self.log_execution("checkpoint_1_approved", {
+                            "step": 1,
+                            "final_count": len(edited_df),
+                            "user_modified": not edited_df.equals(df)
+                        })
+                        
+                        # Force rerun to show the new state
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Failed to save parameters: {e}")
+                        return False
+            else:
+                # Show black filled button indicating completion
+                completion_button = st.button(
+                    "✅ Parameters Saved Successfully", 
+                    type="secondary", 
+                    use_container_width=True, 
+                    disabled=True
+                )
+                
+                # Show file location and next steps
+                import os
+                csv_path = os.path.abspath("parameters.csv")
+                st.success(f"📁 **Parameters saved to:** `{csv_path}`")
+                
+                st.info("""
+                **📐 Next Step: Provide Technical Drawings**
+                
+                Please upload your technical drawings (DXF, PDF, or image files) for analysis against these parameters:
+                - Navigate to the main interface or drawing upload section
+                - Upload your architectural/engineering drawings
+                - The system will analyze measurements and compliance against the saved parameters
+                """)
+                
+                # Add a note about what parameters were saved
+                param_count = len(edited_df)
+                st.markdown(
+                    f"**📊 Ready for analysis:** {param_count} parameters "
+                    "extracted and saved"
+                )
+                
+                # Option to re-edit if needed
+                if st.button("📝 Re-edit Parameters", type="secondary", use_container_width=True):
+                    st.session_state[params_saved_key] = False
+                    st.rerun()
+                
+                return True
         else:
             st.error("No parameters found to review.")
             return False
@@ -382,7 +435,7 @@ class AgenticWorkflowOrchestrator:
                     for col in df.columns:
                         if df[col].dtype == 'object':
                             df[col] = df[col].astype(str)
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                     st.markdown(f"**✅ Analyzed {data.get('measurements_count', 0)} measurements**")
                     if "csv_saved" in data:
                         st.success(f"✅ Saved as: {data['csv_saved']}")
@@ -395,7 +448,7 @@ class AgenticWorkflowOrchestrator:
                     for col in df.columns:
                         if df[col].dtype == 'object':
                             df[col] = df[col].astype(str)
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                     
                     # Show compliance summary if available
                     if "compliance_summary" in data:
@@ -432,7 +485,7 @@ class AgenticWorkflowOrchestrator:
                     for col in df.columns:
                         if df[col].dtype == 'object':
                             df[col] = df[col].astype(str)
-                    st.dataframe(df.head(10), use_container_width=True)
+                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
                     
                 if "csv_saved" in data:
                     st.success(f"✅ Saved as: {data['csv_saved']}")
@@ -717,7 +770,7 @@ class AgenticWorkflowOrchestrator:
                 st.markdown("### 📐 Drawing Analysis Results")
                 
                 if "analysis_df" in data:
-                    st.dataframe(data["analysis_df"], use_container_width=True)
+                    st.dataframe(data["analysis_df"], use_container_width=True, hide_index=True)
                     st.success(f"✅ Analysis saved to: {data.get('csv_saved', 'drawings_analysis.csv')}")
                     
                     # Display titles and tables if available
@@ -740,7 +793,7 @@ class AgenticWorkflowOrchestrator:
                                         headers = table["table_data"][0]
                                         rows = table["table_data"][1:]
                                         df = pd.DataFrame(rows, columns=headers)
-                                        st.dataframe(df, use_container_width=True)
+                                        st.dataframe(df, use_container_width=True, hide_index=True)
                                     except:
                                         # Fallback if conversion fails
                                         st.table(table["table_data"])

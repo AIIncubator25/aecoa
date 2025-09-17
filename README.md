@@ -109,11 +109,19 @@ api_key = "sk-your_openai_api_key_here"
 model = "gpt-4o"  # Latest: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
 base_url = "https://api.openai.com/v1"
 
-# GovTech AI Configuration
+# GovTech LLMaaS Configuration
 [govtech]
 api_key = "your_govtech_api_key_here"
-model = "govtech-llm-v1"  # Check GovTech documentation for available models
-base_url = "https://api.govtech.ai/v1"  # Update with actual GovTech endpoint
+base_url = "https://llmaas.govtext.gov.sg/gateway"
+
+# Supported models for GovTech (check current availability):
+# - gpt-4 (Recommended for complex tasks)
+# - gpt-3.5-turbo (For faster, simpler tasks)
+# - gpt-4o, gpt-4o-mini (Latest OpenAI models via GovTech)
+# - gpt-5-main, gpt-5-main-mini (If available)
+
+[openai]
+api_key = "your_openai_api_key_here"
 
 # Local AI Settings (Ollama)
 [ollama]
@@ -172,10 +180,16 @@ ollama pull llama3.2
    - **`gpt-4-turbo`** - High performance with vision
    - **`gpt-3.5-turbo`** - Budget-friendly option
 
-#### 🏛️ **GovTech AI - Government-grade**
-1. Register for GovTech AI services
-2. Obtain API credentials from GovTech portal
-3. Configure in `.streamlit/secrets.toml` under `[govtech]` section
+#### 🏛️ **GovTech LLMaaS - Government-grade AI**
+1. **Access**: Available to Singapore government agencies and authorized partners
+2. **Registration**: Apply through official GovTech channels for API access
+3. **Configuration**: Add to `.streamlit/secrets.toml` under `[govtech]` section
+4. **API Details**:
+   - **Endpoint**: `https://llmaas.govtext.gov.sg/gateway`
+   - **Authentication**: Use `api-key` header (not Bearer token)
+   - **Models**: Access to GPT-4, GPT-3.5-turbo, and latest OpenAI models
+   - **Format**: Compatible with OpenAI API format
+5. **Testing**: Use built-in API key testing in the application
 4. Supports government-specific compliance models
 
 ### 🔄 Provider Selection

@@ -152,6 +152,14 @@ class YAMLParameterExtractor:
                 
                 if rows_data:
                     requirements_df = pd.DataFrame(rows_data)
+                    
+                    # Fix mixed data types to prevent PyArrow serialization errors
+                    for col in requirements_df.columns:
+                        requirements_df[col] = requirements_df[col].astype(str)
+                    
+                    # Replace pandas NaN representations with empty strings
+                    requirements_df = requirements_df.replace(['nan', 'None', 'NaN'], '', regex=False)
+                    
                     return True, requirements_df
                 else:
                     return False, None
@@ -302,7 +310,7 @@ class YAMLParameterExtractor:
             st.subheader("📊 CSV Schema Table Structure")
             
             if preview_info['requirements_table'] is not None:
-                st.dataframe(preview_info['requirements_table'], use_container_width=True)
+                st.dataframe(preview_info['requirements_table'], use_container_width=True, hide_index=True)
                 st.caption("**7) CSV-structured table (for export/import)** - Requirements table from YAML csv_schema")
             else:
                 st.info("No valid row data found in csv_schema")
@@ -479,7 +487,7 @@ class YAMLParameterExtractor:
                 edited_df = st.data_editor(
                     display_df,
                     use_container_width=True,
-                    hide_index=False,  # Show row index numbers
+                    hide_index=True,  # Hide pandas row index numbers
                     num_rows="dynamic",  # Allow adding/removing rows
                     column_order=canonical_columns,  # Enforce column order
                     column_config={
@@ -609,8 +617,19 @@ class YAMLParameterExtractor:
     def extract_parameters(self, yaml_content: str, api_key: str) -> Tuple[bool, Dict[str, Any]]:
         """Extract parameters from YAML content using AI first, with fallback to direct extraction."""
         
-        # First try AI extraction if API key is available
-        if api_key:
+        # Check provider selection first to determine if we should try AI extraction
+        provider = 'OpenAI'  # default
+        try:
+            import streamlit as st
+            provider = getattr(st.session_state, 'ai_provider', 'OpenAI')
+        except:
+            pass
+        
+        print(f"DEBUG: Main extract method - provider: {provider}, "
+              f"api_key provided: {bool(api_key)}")
+        
+        # Try AI extraction if we have an API key OR if using Ollama (which doesn't need API key)
+        if api_key or provider == "Ollama":
             try:
                 ai_success, ai_result = self._extract_with_ai(yaml_content, api_key)
                 if ai_success:
@@ -620,60 +639,97 @@ class YAMLParameterExtractor:
                     print(f"AI extraction failed: {ai_result.get('error')}")
             except Exception as e:
                 print(f"AI extraction error: {str(e)}")
+        else:
+            print(f"DEBUG: Skipping AI extraction - no API key and not Ollama")
         
         # Fallback to direct extraction from csv_schema
         return self._extract_direct_from_csv_schema(yaml_content)
     
     def _extract_with_ai(self, yaml_content: str, api_key: str) -> Tuple[bool, Dict[str, Any]]:
-        """Extract parameters using AI prompt-response approach."""
+        """Extract parameters using AI prompt-response approach with multi-provider support."""
         
         prompt = self.prompt.format(yaml_content=yaml_content)
         
         try:
-            # OpenAI API call
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0,
-                    "max_tokens": 2000
-                },
-                timeout=60
-            )
-            response.raise_for_status()
-            
-            content = response.json()["choices"][0]["message"]["content"].strip()
-            
-            # Try to clean and parse JSON response
+            # Get provider from session state or use OpenAI as default
             try:
-                # First try direct parsing
-                data = json.loads(content)
-            except json.JSONDecodeError:
-                # Try to extract JSON from markdown code blocks
-                import re
-                json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-                if json_match:
-                    json_content = json_match.group(1).strip()
-                    try:
-                        data = json.loads(json_content)
-                    except json.JSONDecodeError:
-                        return False, {"error": f"Invalid JSON in code block. AI Response: {content[:500]}..."}
+                import streamlit as st
+                # Check all session state for debugging
+                print(f"DEBUG: All session state keys: {list(st.session_state.keys())}")
+                
+                provider = getattr(st.session_state, 'ai_provider', 'OpenAI')
+                print(f"DEBUG: Selected provider from session: {provider}")
+                
+                # Also check if there are other provider-related keys
+                for key in st.session_state.keys():
+                    if 'provider' in key.lower():
+                        print(f"DEBUG: Session state {key}: {st.session_state[key]}")
+                
+                # Get the correct API key for the selected provider
+                if provider == "OpenAI":
+                    correct_api_key = st.secrets.get("openai", {}).get("api_key") or api_key
+                elif provider == "GovTech":
+                    correct_api_key = st.secrets.get("govtech", {}).get("api_key") or api_key
+                elif provider == "Ollama":
+                    correct_api_key = None  # Ollama doesn't need API key
                 else:
-                    # Try to find JSON-like content between { and }
-                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                    if json_match:
-                        json_content = json_match.group(0)
-                        try:
-                            data = json.loads(json_content)
-                        except json.JSONDecodeError:
-                            return False, {"error": f"Invalid JSON structure. AI Response: {content[:500]}..."}
-                    else:
-                        return False, {"error": f"No JSON found in response. AI Response: {content[:500]}..."}
+                    correct_api_key = api_key
+                
+                print(f"DEBUG: Using provider: {provider}, API key type: {'None' if not correct_api_key else correct_api_key[:10] + '...'}")
+                    
+            except Exception as e:
+                print(f"DEBUG: Error getting provider from session: {str(e)}")
+                provider = 'OpenAI'  # Default if streamlit not available
+                correct_api_key = api_key
+            
+            # Call the appropriate provider method
+            print(f"DEBUG: Calling provider method for: {provider}")
+            print(f"DEBUG: Provider comparison - provider == 'OpenAI': {provider == 'OpenAI'}")
+            print(f"DEBUG: Provider comparison - provider == 'GovTech': {provider == 'GovTech'}")
+            print(f"DEBUG: Provider comparison - provider == 'Ollama': {provider == 'Ollama'}")
+            if provider == "OpenAI":
+                result = self._call_openai(prompt, correct_api_key)
+            elif provider == "GovTech":
+                result = self._call_govtech(prompt, correct_api_key)
+            elif provider == "Ollama":
+                result = self._call_ollama(prompt, correct_api_key)
+            else:
+                # Default to OpenAI if unknown provider
+                print(f"DEBUG: Unknown provider {provider}, defaulting to OpenAI")
+                result = self._call_openai(prompt, correct_api_key)
+            
+            # Extract the content from the provider response
+            content = ""
+            if "error" in result:
+                return False, {"error": f"AI provider error: {result['error']}"}
+            
+            # Handle different response formats from different providers
+            if provider == "Ollama":
+                # Ollama returns {"response": "content"}
+                content = result.get("response", "")
+            elif provider in ["OpenAI", "GovTech"]:
+                # OpenAI and GovTech return {"choices": [{"message": {"content": "..."}}]}
+                if "choices" in result and result["choices"]:
+                    content = result["choices"][0]["message"]["content"].strip()
+                else:
+                    # Fallback - sometimes GovTech might return different format
+                    content = str(result)
+            else:
+                # Generic fallback
+                if "choices" in result and result["choices"]:
+                    content = result["choices"][0]["message"]["content"].strip()
+                elif "response" in result:
+                    content = result["response"]
+                else:
+                    content = str(result)
+            
+            if not content:
+                return False, {"error": "Empty response from AI provider"}
+
+            # Try to clean and parse JSON response
+            data = self._parse_ai_response(content)
+            if data is None:
+                return False, {"error": f"Could not parse AI response as JSON. Response: {content[:500]}..."}
             
             # Get the original requirements table for reference mapping
             table_success, requirements_df = self.get_requirements_table(yaml_content)
@@ -707,12 +763,12 @@ class YAMLParameterExtractor:
             parameters = []
             for i, param in enumerate(observed_params, 1):
                 # Try to find CSV schema reference for this parameter
-                param_name = param.get("canonical_parameter", param.get("original_parameter", "")).lower()
+                param_name_key = param.get("canonical_parameter", param.get("original_parameter", "")).lower()
                 csv_reference = "N/A"
                 
                 # Look for exact or partial matches in CSV schema
                 for ref_key, ref_value in reference_mapping.items():
-                    if param_name in ref_key or ref_key in param_name:
+                    if param_name_key in ref_key or ref_key in param_name_key:
                         csv_reference = ref_value
                         break
                 
@@ -764,9 +820,156 @@ class YAMLParameterExtractor:
                 "suggested_count": len(suggested_params),
                 "method": "AI"
             }
+                
         except Exception as e:
             return False, {"error": f"AI extraction failed: {str(e)}"}
     
+    def _is_valid_parameter_data(self, data: Any) -> bool:
+        """Check if data is valid parameter structure"""
+        if not isinstance(data, dict):
+            return False
+        return "observed" in data or "suggested" in data
+    
+    def _call_openai(self, prompt: str, api_key: str) -> Dict[str, Any]:
+        """Call OpenAI API"""
+        try:
+            if not api_key:
+                return {"error": "OpenAI API key is required"}
+            
+            # Debug: Check API key format (remove this after testing)
+            print(f"DEBUG: OpenAI API key starts with: {api_key[:10]}..." if api_key else "DEBUG: No API key provided")
+            
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                    "max_tokens": 2000
+                },
+                timeout=30  # Reduced timeout for faster testing
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": f"OpenAI API error: {str(e)}"}
+    
+    def _call_govtech(self, prompt: str, api_key: str) -> Dict[str, Any]:
+        """Call GovTech LLMaaS API"""
+        try:
+            if not api_key:
+                return {"error": "GovTech API key is required"}
+            
+            # Debug: Check API key format (remove this after testing)
+            print(f"DEBUG: GovTech API key starts with: {api_key[:10]}..." if api_key else "DEBUG: No GovTech API key")
+            
+            # Use the correct GovTech model - they might not support gpt-4o
+            model = self.model if self.model in ["gpt-4", "gpt-4o", "gpt-3.5-turbo"] else "gpt-4"
+            
+            response = requests.post(
+                "https://llmaas.govtext.gov.sg/gateway/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                    "max_tokens": 2000
+                },
+                timeout=30  # Reduced timeout
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": f"GovTech API error: {str(e)}"}
+    
+    def _call_ollama(self, prompt: str, api_key: str) -> Dict[str, Any]:
+        """Call Ollama local API"""
+        try:
+            # Debug: Check Ollama call
+            print(f"DEBUG: Attempting Ollama call with model: {self.model}")
+            
+            # Use the correct Ollama model format
+            model = self.model if self.model in ["llama3.2:latest", "llama3.1:latest", "llama3:latest"] else "llama3.2:latest"
+            print(f"DEBUG: Using Ollama model: {model}")
+            
+            # First test if Ollama is available
+            test_response = requests.get("http://localhost:11434/api/tags", timeout=5)
+            if test_response.status_code != 200:
+                return {"error": "Ollama service not accessible. Please ensure Ollama is running on localhost:11434"}
+            
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False
+            }
+            
+            print(f"DEBUG: Sending request to Ollama with payload keys: {list(payload.keys())}")
+            
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json=payload,
+                timeout=60  # Ollama can be slow
+            )
+            
+            print(f"DEBUG: Ollama response status: {response.status_code}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # Debug: Check Ollama response format
+            print(f"DEBUG: Ollama response keys: {list(result.keys())}")
+            if "response" in result:
+                print(f"DEBUG: Ollama response content length: {len(result['response'])}")
+            
+            # Return in consistent format for our parser
+            return {
+                "response": result.get("response", "")
+            }
+        except requests.exceptions.ConnectionError as e:
+            return {"error": f"Ollama connection error: Cannot connect to localhost:11434. Is Ollama running? {str(e)}"}
+        except requests.exceptions.Timeout as e:
+            return {"error": f"Ollama timeout error: {str(e)}"}
+        except Exception as e:
+            return {"error": f"Ollama API error: {str(e)}"}
+
+    def _parse_ai_response(self, content: str) -> dict:
+        """Parse AI response with multiple strategies"""
+        try:
+            # First try direct parsing
+            return json.loads(content)
+        except json.JSONDecodeError:
+            pass
+            
+        try:
+            # Try to extract JSON from markdown code blocks
+            import re
+            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_match:
+                json_content = json_match.group(1).strip()
+                return json.loads(json_content)
+        except (json.JSONDecodeError, AttributeError):
+            pass
+            
+        try:
+            # Try to find JSON-like content between { and }
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                json_content = json_match.group(0)
+                return json.loads(json_content)
+        except (json.JSONDecodeError, AttributeError):
+            pass
+            
+        return None
+
     def _extract_direct_from_csv_schema(self, yaml_content: str) -> Tuple[bool, Dict[str, Any]]:
         """Extract parameters directly from YAML csv_schema as fallback."""
         try:
@@ -815,5 +1018,15 @@ class YAMLParameterExtractor:
         # Ensure 'no' column is sequential starting from 1
         if len(df) > 0:
             df["no"] = range(1, len(df) + 1)
+        
+        # Fix data types to prevent PyArrow serialization errors
+        # Convert all columns to string first to handle mixed types
+        df = df.astype(str)
+        
+        # Then convert 'no' column to integer
+        df["no"] = pd.to_numeric(df["no"], errors='coerce').fillna(0).astype(int)
+        
+        # Replace pandas NaN representations with empty strings
+        df = df.replace(['nan', 'None', 'NaN'], '', regex=False)
         
         return df

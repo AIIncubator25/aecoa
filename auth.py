@@ -77,7 +77,9 @@ class StreamlitAuth:
             """)
             return {}
     
-    def validate_api_key(self, provider: str, api_key: str, base_url: str = None) -> Tuple[bool, str]:
+    def validate_api_key(
+        self, provider: str, api_key: str, base_url: str = None
+    ) -> Tuple[bool, str]:
         """Validate an API key for a specific provider"""
         if not api_key or not api_key.strip():
             return False, "API key is empty"
@@ -100,21 +102,44 @@ class StreamlitAuth:
                     return False, f"OpenAI API error: {response.status_code}"
                     
             elif provider.lower() == 'govtech':
-                # Test GovTech API key
+                # Test GovTech API key using a simple chat completion endpoint
                 headers = {
-                    'Authorization': f'Bearer {api_key}',
+                    'api-key': api_key,  # GovTech uses 'api-key' header, not Bearer
                     'Content-Type': 'application/json'
                 }
-                # Use a simple test endpoint or model list
-                url = f"{base_url or 'https://llmaas.govtext.gov.sg/gateway'}/models"
-                response = requests.get(url, headers=headers, timeout=10)
+                # Use the chat completions endpoint with gpt-4 as test model
+                base_url = base_url or 'https://llmaas.govtext.gov.sg/gateway'
+                url = f"{base_url}/openai/deployments/gpt-4/chat/completions"
+                
+                # Simple test message
+                test_payload = {
+                    "messages": [{"role": "user", "content": "Hello"}],
+                    "max_tokens": 5,
+                    "temperature": 0.0
+                }
+                
+                response = requests.post(url, headers=headers, json=test_payload, timeout=30)
                 
                 if response.status_code == 200:
                     return True, "Valid GovTech API key"
                 elif response.status_code == 401:
-                    return False, "Invalid GovTech API key"
+                    return False, "Invalid GovTech API key - Check your api-key"
+                elif response.status_code == 403:
+                    return False, "GovTech API key lacks permissions"
+                elif response.status_code == 429:
+                    return False, "GovTech API rate limit exceeded"
                 else:
-                    return False, f"GovTech API error: {response.status_code}"
+                    try:
+                        error_details = response.json() if response.text else {}
+                        error_msg = error_details.get('error', {}).get(
+                            'message', response.text[:100]
+                        )
+                        return False, f"GovTech API error ({response.status_code}): {error_msg}"
+                    except:
+                        return False, (
+                            f"GovTech API error: {response.status_code} - "
+                            f"{response.text[:100]}"
+                        )
             
             else:
                 return False, f"Unsupported provider: {provider}"
