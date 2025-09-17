@@ -2,10 +2,9 @@
 Enhanced Authentication System for Streamlit App with BYOK Support
 
 🔐 SECURITY DESIGN:
-- Admin users: Pre-configured API keys stored locally at:
-  C:\2025_AIIncubator\aecoa\.streamlit\secrets.toml
+- Admin users: Pre-configured API keys stored securely in local config
 - Public users: BYOK (Bring Your Own Key) - keys stored in session only
-- secrets.toml is git-ignored and never committed for security
+- Local secrets are git-ignored and never committed for security
 
 🎯 USER TYPES:
 - 'admin': Access to pre-configured OpenAI & GovTech API keys
@@ -40,12 +39,10 @@ class StreamlitAuth:
         return 'admin' if self.is_admin_user(username) else 'public'
     
     def get_admin_api_keys(self) -> Dict[str, Dict]:
-        """Get pre-configured API keys for admin users from local secrets.toml
+        """Get pre-configured API keys for admin users from local secrets
         
-        Keys are stored securely at:
-        C:\\2025_AIIncubator\\aecoa\\.streamlit\\secrets.toml
-        
-        This file is ignored by git and never committed to ensure security.
+        Admin keys are stored securely in local configuration files
+        that are never committed to version control.
         """
         try:
             api_keys = {}
@@ -74,8 +71,7 @@ class StreamlitAuth:
         except Exception as e:
             st.error(f"Error loading admin API keys from local secrets: {e}")
             st.info("""
-            **Admin keys should be configured in:**
-            `C:\\2025_AIIncubator\\aecoa\\.streamlit\\secrets.toml`
+            **Admin keys should be configured in your local secrets file.**
             
             This file is private and never committed to git.
             """)
@@ -343,7 +339,7 @@ class StreamlitAuth:
         
         if user_type == 'admin':
             st.sidebar.success("🔐 Using pre-configured admin keys")
-            st.sidebar.info("🏠 Keys stored locally at:\n`C:\\2025_AIIncubator\\aecoa\\.streamlit\\secrets.toml`")
+            st.sidebar.info("🏠 Keys stored securely in local config")
             for provider, config in api_keys.items():
                 if config.get('api_key'):
                     st.sidebar.success(f"✅ {provider.title()}: Ready")
