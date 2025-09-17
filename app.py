@@ -15,12 +15,18 @@ import os
 from typing import Optional
 
 # Import authentication system
-from auth import StreamlitAuth
+from agents.auth import StreamlitAuth
 
-# Import our clean agents
-from agents.agent1_yaml_extractor import YAMLParameterExtractor
-from agents.agent2_drawing_analyzer import DrawingAnalysisAgent
-from agents.agent3_executive_reporter import ExecutiveReportGenerator
+# Import core functionality
+from agents.core import api_key_manager
+
+# Import our organized agents
+from agents.extractors.agent1_yaml_extractor import YAMLParameterExtractor
+from agents.analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
+from agents.reporters.agent3_executive_reporter import ExecutiveReportGenerator
+
+# Import orchestrator for complex workflows
+from agents.orchestrator import AgenticWorkflowOrchestrator
 
 # --- Centralized Prompt Management ---
 DEFAULT_PROMPTS = {
@@ -136,12 +142,9 @@ def initialize_session():
         st.session_state.executive_report = None
 
 def get_api_key(provider: str) -> Optional[str]:
-    """Get API key for the selected provider."""
-    if provider == "OpenAI":
-        return st.secrets.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
-    elif provider == "GovTech":
-        return st.secrets.get("govtech", {}).get("api_key") or os.getenv("GOVTECH_API_KEY")
-    return None
+    """Get API key for the selected provider using the centralized manager."""
+    username = st.session_state.get('username')
+    return api_key_manager.get_api_key(provider, username)
 
 def main():
     # Page config
@@ -152,6 +155,7 @@ def main():
     )
     
     # Initialize authentication
+    from agents.auth import StreamlitAuth
     auth = StreamlitAuth()
     
     # Check authentication
@@ -203,6 +207,41 @@ def main():
                 ["OpenAI", "GovTech", "Ollama"],
                 key="ai_provider"
             )
+            
+            # BYOK Interface - Bring Your Own Key
+            st.markdown("---")
+            with st.expander("🔑 Bring Your Own API Key (BYOK)", expanded=False):
+                st.markdown("**For public deployment:** Enter your own API keys securely")
+                
+                if provider == "OpenAI":
+                    user_key = st.text_input(
+                        "OpenAI API Key",
+                        type="password",
+                        placeholder="sk-your_openai_key_here",
+                        help="Get your API key from https://platform.openai.com/",
+                        key=f"user_api_key_input_{provider.lower()}"
+                    )
+                    if user_key:
+                        st.session_state[f"user_api_key_{provider.lower()}"] = user_key
+                        st.success("✅ OpenAI API key configured")
+                
+                elif provider == "GovTech":
+                    user_key = st.text_input(
+                        "GovTech API Key",
+                        type="password",
+                        placeholder="your_govtech_key_here",
+                        help="Get your API key from GovTech AI services",
+                        key=f"user_api_key_input_{provider.lower()}"
+                    )
+                    if user_key:
+                        st.session_state[f"user_api_key_{provider.lower()}"] = user_key
+                        st.success("✅ GovTech API key configured")
+                
+                elif provider == "Ollama":
+                    st.info("🆓 Ollama runs locally and doesn't need an API key!")
+                    st.markdown("Make sure Ollama is running: `ollama serve`")
+            
+            st.markdown("---")
             
             # Dynamic model selection
             if use_dynamic_models:

@@ -1,7 +1,4 @@
 # 🔑 Secrets (never commit)# 📁 Uploaded files (keep local - may contain sensitive data)
-uploads/
-# Keep uploads directory structure but ignore all contents
-!uploads/
 uploads/*
 !uploads/.gitkeep.env
 .streamlit/secrets.toml

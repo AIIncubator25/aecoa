@@ -1,6 +1,14 @@
 """
-Agentic Workflow Orchestrator
-Manages the sequential execution of 4 AI agents with human-in-the-loop checkpoints.
+🎯 AECOA Orchestrator - Central Coordination System
+
+This is the main orchestration engine that coordinates all AI agents and components.
+Handles the complete workflow from YAML processing to executive reporting.
+
+Architecture:
+- Manages agent lifecycle and communication
+- Coordinates data flow between processing steps  
+- Provides unified interface for all AI operations
+- Handles error recovery and fallback strategies
 """
 from __future__ import annotations
 from typing import Dict, Any, List, Optional, Tuple, Callable
@@ -10,11 +18,18 @@ import os
 from datetime import datetime
 import streamlit as st
 
-# Import all agents
-from agents.agent1_parameter_definition import ParameterDefinitionAgent
-from agents.agent2_drawing_analyzer import DrawingAnalysisAgent  
-from agents.agent3_compliance_comparison import ComplianceComparisonAgent
-from agents.agent4_insights_report import InsightsReportAgent
+# Core system imports
+from .core.api_key_manager import api_key_manager
+
+# Agent imports organized by function
+from .extractors.agent1_yaml_extractor import YAMLParameterExtractor
+from .analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
+from .reporters.agent3_executive_reporter import ExecutiveReportGenerator
+from .reporters.agent4_insights_report import InsightsReportGenerator
+
+# Supporting components  
+from .providers import ProviderManager
+from .model_manager import ModelManager
 
 
 class AgenticWorkflowOrchestrator:
@@ -31,18 +46,24 @@ class AgenticWorkflowOrchestrator:
         }
         self.results = {}
     
-    def initialize_agents(self, provider: str, model: str, api_key: str = None, prompts: Dict = None):
-        """Initialize all 4 agents with the selected provider and model"""
+    def initialize_agents(self, provider: str, model: str, api_key: str = None, 
+                         prompts: Dict = None):
+        """Initialize all agents with the selected provider and model"""
         try:
             self.provider = provider
             self.model = model
             self.api_key = api_key
             
+            # Get API key from centralized manager if not provided
+            if not api_key:
+                username = st.session_state.get('username')
+                api_key = api_key_manager.get_api_key(provider, username)
+            
             self.agents = {
-                "agent1": ParameterDefinitionAgent(provider, model),
+                "agent1": YAMLParameterExtractor(model),
                 "agent2": DrawingAnalysisAgent(provider, model),
-                "agent3": ComplianceComparisonAgent(provider, model),
-                "agent4": InsightsReportAgent(provider, model)
+                "agent3": ExecutiveReportGenerator(provider, model),
+                "agent4": InsightsReportGenerator(provider, model)
             }
             
             # Set agent prompts if provided
