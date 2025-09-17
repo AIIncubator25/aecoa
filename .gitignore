@@ -13,6 +13,9 @@ __pycache__/
 .streamlit/static/
 .streamlit/secrets.toml
 
+# 📊 git files
+.git/
+
 # 🗂️ Virtual environment directories
 .venv/
 .env
