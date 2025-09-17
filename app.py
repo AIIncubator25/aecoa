@@ -190,17 +190,83 @@ def main():
             st.header("🤖 AI Agent Configuration")
             st.markdown("*Select AI provider and model for all agents*")
             
+            # Import model manager
+            try:
+                from agents.model_manager import model_manager
+                use_dynamic_models = True
+            except ImportError:
+                st.warning("Model manager not available, using legacy mode")
+                use_dynamic_models = False
+            
             provider = st.selectbox(
                 "AI Provider",
                 ["OpenAI", "GovTech", "Ollama"],
                 key="ai_provider"
             )
             
-            model = st.text_input(
-                "Model Name",
-                value="gpt-4o-mini" if provider == "OpenAI" else "gpt-4",
-                key="ai_model"
-            )
+            # Dynamic model selection
+            if use_dynamic_models:
+                # Get available models for selected provider
+                api_key = get_api_key(provider)
+                available_models = {}
+                
+                try:
+                    if provider == "OpenAI":
+                        available_models = model_manager.get_openai_models(api_key)
+                    elif provider == "GovTech":
+                        available_models = model_manager.get_govtech_models(api_key)
+                    elif provider == "Ollama":
+                        available_models = model_manager.get_ollama_models()
+                except Exception as e:
+                    st.error(f"Error loading models: {e}")
+                
+                if available_models:
+                    # Show model selectbox with descriptions
+                    model_options = list(available_models.keys())
+                    
+                    # Get default model based on provider
+                    default_model = "gpt-4o-mini" if provider == "OpenAI" else "gpt-4o"
+                    if default_model not in model_options and model_options:
+                        default_model = model_options[0]
+                    
+                    selected_model = st.selectbox(
+                        "Model",
+                        model_options,
+                        index=model_options.index(default_model) if default_model in model_options else 0,
+                        key="ai_model_select"
+                    )
+                    
+                    # Show model information
+                    if selected_model in available_models:
+                        model_info = available_models[selected_model]
+                        st.info(f"""
+                        **{model_info.name}**
+                        
+                        {model_info.description}
+                        
+                        • Context: {model_info.context_length:,} tokens
+                        • Vision: {'✅' if model_info.supports_vision else '❌'}
+                        • Cost: {'Free' if model_info.cost_per_1k_tokens == 0 else f'${model_info.cost_per_1k_tokens}/1K tokens' if model_info.cost_per_1k_tokens else 'N/A'}
+                        
+                        **Recommended for:** {', '.join(model_info.recommended_for or [])}
+                        """)
+                    
+                    model = selected_model
+                else:
+                    # Fallback to text input if no models detected
+                    model = st.text_input(
+                        "Model Name",
+                        value="gpt-4o-mini" if provider == "OpenAI" else "gpt-4o",
+                        key="ai_model_text",
+                        help="Enter model name manually"
+                    )
+            else:
+                # Legacy text input mode
+                model = st.text_input(
+                    "Model Name",
+                    value="gpt-4o-mini" if provider == "OpenAI" else "gpt-4",
+                    key="ai_model"
+                )
             
             # Get API key
             api_key = get_api_key(provider)

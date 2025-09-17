@@ -4,19 +4,48 @@ import json
 import os
 import requests
 from typing import Dict, Any, Tuple
+from .model_manager import model_manager, ModelInfo
 
+# Legacy defaults - now managed dynamically by model_manager
 DEFAULTS = {
     "GovTech": {"model": "gpt-4o", "base_url": "https://llmaas.govtext.gov.sg/gateway"},
     "OpenAI": {"model": "gpt-4o", "base_url": None},
-    "Ollama": {"model": "llava:7b", "base_url": None},
+    "Ollama": {"model": "llama3.2:latest", "base_url": None},
 }
 
 class call_provider:
     @staticmethod
     def auto_select(provider_hint: str | None, model_hint: str | None) -> Tuple[str, str]:
+        """Auto-select provider and model with dynamic model detection"""
         provider = provider_hint or "GovTech"
-        model = model_hint or DEFAULTS[provider]["model"]
+        
+        if model_hint:
+            # Use specified model if provided
+            model = model_hint
+        else:
+            # Try to get recommended model for compliance analysis
+            recommended = model_manager.get_recommended_model("compliance_analysis", provider)
+            if recommended:
+                model = recommended.name
+            else:
+                # Fall back to legacy defaults
+                model = DEFAULTS[provider]["model"]
+        
         return provider, model
+    
+    @staticmethod
+    def get_available_models(provider: str, api_key: str = None) -> Dict[str, ModelInfo]:
+        """Get available models for a specific provider"""
+        provider_configs = {}
+        
+        if api_key:
+            if provider == "OpenAI":
+                provider_configs['openai'] = {'api_key': api_key}
+            elif provider == "GovTech":
+                provider_configs['govtech'] = {'api_key': api_key}
+        
+        all_models = model_manager.get_all_models(provider_configs)
+        return all_models.get(provider, {})
 
     @staticmethod
     def extract_from_image(image_bytes: bytes, provider: str, model: str) -> Dict[str, Any]:
