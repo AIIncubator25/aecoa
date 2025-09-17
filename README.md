@@ -39,7 +39,8 @@ This Streamlit application uses multiple AI agents powered by **locally-running 
 4. **Configure authentication** (optional)
 5. **Set up API keys** for your chosen AI providers (BYOK)
 
-📋 **See [LOCAL_LLAMA_SETUP.md](LOCAL_LLAMA_SETUP.md) for detailed installation instructions**
+📋 **See [LOCAL_LLAMA_SETUP.md](LOCAL_LLAMA_SETUP.md) for detailed installation instructions**  
+🔑 **See [BYOK_SETUP.md](BYOK_SETUP.md) for API key configuration guide**
 
 ## 🚀 Quick Start
 
