@@ -81,9 +81,9 @@ def check_environment():
     # Check core files
     core_files = [
         'app.py',
-        'auth.py',
+        'agents/auth/auth.py',
         'agents/orchestrator.py',
-        'agents/agent1_parameter_definition.py',
+        'agents/extractors/agent1_parameter_definition.py',
         'agents/providers.py',
         'agents/model_manager.py'
     ]

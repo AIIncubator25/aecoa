@@ -21,6 +21,29 @@ class InsightsReportAgent:
         self.custom_user_prompt = None
         self.custom_combined_prompt = None
     
+    @classmethod
+    def get_default_prompts(cls) -> Dict[str, str]:
+        """Get the default prompts for this agent (compatibility with app.py)."""
+        system_prompt = (
+            "You are Agent 4: Executive Business Intelligence & Strategic Insights Specialist. "
+            "You are a senior business consultant with expertise in regulatory compliance, risk management, and strategic planning. "
+            "Your mission is to transform technical compliance data into actionable business intelligence and strategic recommendations."
+        )
+        
+        user_prompt = (
+            "🏢 **EXECUTIVE BUSINESS INTELLIGENCE MISSION** \\n"
+            "Transform technical compliance data into strategic business intelligence and actionable C-level recommendations.\\n\\n"
+            "📊 **COMPLIANCE DATA FOR ANALYSIS:** \\n"
+            "{context_json}\\n\\n"
+            "🎯 **BUSINESS INTELLIGENCE ANALYSIS FRAMEWORK:** \\n"
+            "Generate executive-grade business intelligence that enables confident strategic decision-making."
+        )
+        
+        return {
+            "system": system_prompt,
+            "user": user_prompt
+        }
+    
     def set_custom_prompts(self, combined_prompt: str = None, system_prompt: str = None, user_prompt: str = None):
         """Set custom prompts for Agent 4. Prefer combined if provided."""
         self.custom_combined_prompt = combined_prompt

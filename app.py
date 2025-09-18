@@ -1,9 +1,9 @@
 """
-AEC Compliance Analysis - Clean Agentic Workflow
+AEC Compliance Analysis - Simplified Agentic Workflow
 Main orchestration file for YAML-based compliance analysis using AI agents.
 
 Workflow:
-1. Step 1: Upload YAML → Extract parameters → parameters.csv (9×7 table)
+1. Step 1: Upload CSV/TXT/XLS → Convert to YAML + JSON with JsonLogic → Complete document processing
 2. Step 2: Upload JPG/DXF → Analyze drawings → comparisons.csv (with compliance status)
 3. Step 3: Generate executive report with insights and recommendations
 
@@ -11,28 +11,31 @@ All AI agents use the same provider/model selected in sidebar.
 """
 import streamlit as st
 import pandas as pd
+import json
 import os
 from typing import Optional
 
 # Import authentication system
-from agents.auth import StreamlitAuth
+from agents.auth.auth import StreamlitAuth
 
 # Import core functionality
-from agents.core import api_key_manager
+from agents.core.api_key_manager import api_key_manager
 
 # Import our organized agents
-from agents.extractors.agent1_yaml_extractor import YAMLParameterExtractor
+from agents.parsers.agent1_unified_processor import UnifiedDocumentProcessor
 from agents.analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
 from agents.reporters.agent3_executive_reporter import ExecutiveReportGenerator
+from agents.reporters.agent4_insights_report import InsightsReportAgent
 
 # Import orchestrator for complex workflows
 from agents.orchestrator import AgenticWorkflowOrchestrator
 
 # --- Centralized Prompt Management ---
 DEFAULT_PROMPTS = {
-    "agent1_yaml_extractor": YAMLParameterExtractor.get_default_prompts(),
+    "agent1_unified_processor": UnifiedDocumentProcessor.get_default_prompts(),
     "agent2_drawing_analyzer": DrawingAnalysisAgent.get_default_prompts(),
-    "agent3_executive_reporter": ExecutiveReportGenerator.get_default_prompts()
+    "agent3_executive_reporter": ExecutiveReportGenerator.get_default_prompts(),
+    "agent4_insights_report": InsightsReportAgent.get_default_prompts()
 }
 
 def get_agent_prompts():
@@ -59,9 +62,10 @@ def render_prompt_editor():
     for agent_name, agent_prompts in prompts.items():
         # Map agent names to step names for better UX
         step_mapping = {
-            "agent1_yaml_extractor": "Step 1 - YAML Parameter Extractor",
+            "agent1_unified_processor": "Step 1 - Document Processing",
             "agent2_drawing_analyzer": "Step 2 - Drawing Analysis Agent", 
-            "agent3_executive_reporter": "Step 3 - Executive Report Generator"
+            "agent3_executive_reporter": "Step 3 - Executive Report Generator",
+            "agent4_insights_report": "Step 4 - Insights Generator"
         }
         agent_display_name = step_mapping.get(agent_name, agent_name.replace('_', ' ').title())
         
@@ -208,10 +212,33 @@ def main():
                 key="ai_provider"
             )
             
-            # BYOK Interface - Bring Your Own Key
+            # Get current user info
+            username = st.session_state.get('username', '')
+            is_admin = username == 'admin'
+            
+            # API Key Status & BYOK Interface
             st.markdown("---")
-            with st.expander("🔑 Bring Your Own API Key (BYOK)", expanded=False):
-                st.markdown("**For public deployment:** Enter your own API keys securely")
+            
+            # Show different interfaces for admin vs regular users
+            if is_admin:
+                st.markdown("**🔐 Admin Key Management**")
+                with st.expander("ℹ️ Admin Key Sources", expanded=False):
+                    st.info("""
+                    **Admin users can use:**
+                    • 🔑 **BYOK**: Your own API keys (recommended)
+                    • 🔐 **Pre-configured**: Keys from secrets.toml (local only)
+                    
+                    *BYOK provides better security and cost control*
+                    """)
+            else:
+                st.markdown("**🔑 API Key Required (BYOK)**")
+                st.info("**Regular users must provide their own API keys for security**")
+            
+            # BYOK Interface for all users
+            byok_expanded = not is_admin or not api_key_manager.get_api_key(provider, username)
+            with st.expander("🔑 Bring Your Own API Key (BYOK)", expanded=byok_expanded):
+                st.markdown("**Secure API key management:**")
+                st.markdown("✅ Keys stored in session only • ✅ Never logged or saved • ✅ Full cost control")
                 
                 if provider == "OpenAI":
                     user_key = st.text_input(
@@ -223,7 +250,7 @@ def main():
                     )
                     if user_key:
                         st.session_state[f"user_api_key_{provider.lower()}"] = user_key
-                        st.success("✅ OpenAI API key configured")
+                        st.success("✅ OpenAI API key configured securely")
                 
                 elif provider == "GovTech":
                     user_key = st.text_input(
@@ -235,11 +262,23 @@ def main():
                     )
                     if user_key:
                         st.session_state[f"user_api_key_{provider.lower()}"] = user_key
-                        st.success("✅ GovTech API key configured")
+                        st.success("✅ GovTech API key configured securely")
                 
                 elif provider == "Ollama":
-                    st.info("🆓 Ollama runs locally and doesn't need an API key!")
-                    st.markdown("Make sure Ollama is running: `ollama serve`")
+                    st.success("🆓 Ollama runs locally and doesn't need an API key!")
+                    st.markdown("**Setup:** Make sure Ollama is running locally: `ollama serve`")
+                    
+            # Show current key status
+            current_key = api_key_manager.get_api_key(provider, username)
+            if current_key:
+                providers_status = api_key_manager.get_available_providers(username)
+                status_info = providers_status.get(provider, {})
+                st.success(f"🔑 {provider}: {status_info.get('status_message', 'Ready')}")
+            elif provider != "Ollama":
+                if is_admin:
+                    st.warning(f"⚠️ {provider}: Configure key in secrets.toml or use BYOK above")
+                else:
+                    st.error(f"❌ {provider}: Please provide your API key using BYOK above")
             
             st.markdown("---")
             
@@ -264,7 +303,15 @@ def main():
                     model_options = list(available_models.keys())
                     
                     # Get default model based on provider
-                    default_model = "gpt-4o-mini" if provider == "OpenAI" else "gpt-4o"
+                    if provider == "OpenAI":
+                        default_model = "gpt-4o-mini"
+                    elif provider == "GovTech":
+                        default_model = "gpt-4o"
+                    elif provider == "Ollama":
+                        default_model = "llama3.2:latest"
+                    else:
+                        default_model = "gpt-4o"
+                    
                     if default_model not in model_options and model_options:
                         default_model = model_options[0]
                     
@@ -272,7 +319,7 @@ def main():
                         "Model",
                         model_options,
                         index=model_options.index(default_model) if default_model in model_options else 0,
-                        key="ai_model_select"
+                        key=f"ai_model_select_{provider}"
                     )
                     
                     # Show model information
@@ -291,6 +338,7 @@ def main():
                         """)
                     
                     model = selected_model
+                    st.session_state.ai_model = selected_model  # Store in session state
                 else:
                     # Fallback to text input if no models detected
                     model = st.text_input(
@@ -299,6 +347,7 @@ def main():
                         key="ai_model_text",
                         help="Enter model name manually"
                     )
+                    st.session_state.ai_model = model  # Store in session state
             else:
                 # Legacy text input mode
                 model = st.text_input(
@@ -306,6 +355,7 @@ def main():
                     value="gpt-4o-mini" if provider == "OpenAI" else "gpt-4",
                     key="ai_model"
                 )
+                st.session_state.ai_model = model  # Store in session state
             
             # Get API key
             api_key = get_api_key(provider)
@@ -379,8 +429,8 @@ export {provider.upper()}_API_KEY="your-api-key-here"
             
             # Agent status
             st.markdown("### 🔄 Agent Status")
-            st.markdown(f"**Step 1**: YAML Parameter Extractor")
-            st.markdown(f"**Step 2**: Drawing Analysis Agent") 
+            st.markdown(f"**Step 1**: Document Processing (YAML + JSON)")
+            st.markdown(f"**Step 2**: Drawing Analysis Agent")
             st.markdown(f"**Step 3**: Executive Report Generator")
             st.markdown(f"**Provider**: {provider}")
             st.markdown(f"**Model**: {model}")
@@ -388,9 +438,9 @@ export {provider.upper()}_API_KEY="your-api-key-here"
         # Main workflow
         st.header("📋 Compliance Analysis Workflow")
         
-        # Step 1: YAML Parameter Extraction (Consolidated in Agent)
-        agent1_ui = YAMLParameterExtractor()
-        agent1_ui.render_step1_ui(st, model, api_key, get_agent_prompts)
+        # Step 1: Unified Document Processing (CSV → YAML + JSON with JsonLogic)
+        step1_processor = UnifiedDocumentProcessor(provider=provider, model=model)
+        step1_processor.render_step1_ui()
         
         # Step 2: Drawing Analysis
         st.markdown("---")

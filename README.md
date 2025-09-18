@@ -27,12 +27,12 @@ AECOA is a sophisticated multi-agent AI system designed for architectural and en
 │   │
 │   ├── 🎨 ui/                   # User Interface Components
 │   │   ├── ui_components.py     # 🖼️ Reusable UI elements (BYOK interface, etc.)
+│   │
+│   ├── � parsers/              # Document Processing Agents  
+│   │   ├── agent1_unified_processor.py     # 🔄 Unified CSV/TXT/XLS → YAML+JSON+JsonLogic
 │   │   └── __init__.py          # Module initialization
 │   │
-│   ├── 📥 extractors/           # Data Extraction Agents
-│   │   ├── agent1_yaml_extractor.py        # 📄 YAML → Parameters extraction
-│   │   ├── agent1_parameter_definition.py  # 📋 Parameter definition logic
-│   │   └── agent1_parameter_definition_clean.py # 🧹 Clean parameter processing
+│   ├── 📥 extractors/           # Data Extraction Agents (archived - functionality moved to parsers)
 │   │
 │   ├── 🔍 analyzers/            # Analysis Agents
 │   │   └── agent2_drawing_analyzer.py      # 🖼️ Technical drawing analysis
@@ -117,10 +117,16 @@ streamlit run app.py
 - **🏛️ GovTech** - Enterprise/Government deployment
 - **🦙 Ollama** - Local deployment (Free, Private)
 
-### API Key Management:
-- **👤 BYOK (Bring Your Own Key)** - For public deployment
-- **🔐 Admin Keys** - Pre-configured local keys
-- **🌐 Environment Variables** - System-level configuration
+### API Key Management (Security-First):
+- **� BYOK (Bring Your Own Key)** - **REQUIRED for regular users** (Secure, cost-controlled)
+- **🔐 Admin Keys** - Limited to admin users only (secrets.toml, local development)
+- **🚫 No Shared Keys** - Each user provides their own keys for maximum security
+
+**Security Model:**
+- ✅ **Regular Users**: Must use BYOK - keys stored in session only, never logged
+- ✅ **Admin Users**: Can use pre-configured keys OR BYOK (BYOK recommended)
+- ✅ **Production Ready**: No shared API costs, full user control over AI usage
+- ✅ **Privacy**: User keys never leave their session, cleared on logout
 
 ## 🛠️ Key Components Explained
 
@@ -158,9 +164,9 @@ streamlit run app.py
 
 ### 🤖 AI Agents
 
-#### 📥 Extractor Agents (`agents/extractors/`)
-- **agent1_yaml_extractor.py**: Converts YAML requirements → structured parameters
-- **Features**: Multi-provider support, robust error handling, format validation
+#### � Parser Agents (`agents/parsers/`)
+- **agent1_unified_processor.py**: Unified document processor (CSV/TXT/XLS → YAML+JSON+JsonLogic)
+- **Features**: Multi-format support, AI-powered conversion, JsonLogic validation, persistent downloads
 
 #### 🔍 Analyzer Agents (`agents/analyzers/`)
 - **agent2_drawing_analyzer.py**: Technical drawing analysis and compliance checking

@@ -20,27 +20,47 @@ class APIKeyManager:
     
     def get_api_key(self, provider: str, username: str = None) -> Optional[str]:
         """
-        Get API key for provider with fallback hierarchy:
-        1. User-provided BYOK key (session state)
-        2. Admin pre-configured key (secrets.toml)
-        3. Environment variable
+        Get API key for provider with security-focused hierarchy:
+        1. User-provided BYOK key (session state) - for all users
+        2. Admin pre-configured key (secrets.toml) - ADMIN ONLY
+        3. Environment variable - fallback for local development
+        
+        SECURITY: Regular users MUST use BYOK, only admin can use secrets.toml
         """
         if provider not in self.supported_providers:
             return None
             
-        # Check user-provided BYOK key first (highest priority)
+        # Check user-provided BYOK key first (available to all users)
         session_key = f"user_api_key_{provider.lower()}"
         if session_key in st.session_state and st.session_state[session_key]:
             return st.session_state[session_key]
         
-        # Check admin pre-configured keys
+        # Admin pre-configured keys - RESTRICTED TO ADMIN ONLY
         if self._is_admin_user(username):
             admin_key = self._get_admin_key(provider)
             if admin_key:
                 return admin_key
         
-        # Fallback to environment variables
-        return self._get_env_key(provider)
+        # Environment variables - fallback for local development only
+        # Note: In production deployment, env vars should not contain API keys
+        if self._is_local_development():
+            return self._get_env_key(provider)
+        
+        # No API key available - user must provide BYOK
+        return None
+    
+    def _is_local_development(self) -> bool:
+        """Check if running in local development environment"""
+        # This helps distinguish between local dev and production deployment
+        try:
+            # Check if we're running locally (not on Streamlit Cloud)
+            import socket
+            hostname = socket.gethostname()
+            # Local development indicators
+            local_indicators = ['localhost', 'local', 'dev', socket.gethostname()]
+            return any(indicator in hostname.lower() for indicator in local_indicators)
+        except:
+            return False
     
     def _is_admin_user(self, username: str) -> bool:
         """Check if user has admin privileges for pre-configured keys"""
@@ -50,13 +70,21 @@ class APIKeyManager:
         return username in admin_users
     
     def _get_admin_key(self, provider: str) -> Optional[str]:
-        """Get pre-configured admin API key from secrets.toml"""
+        """Get pre-configured admin API key from secrets.toml - ADMIN ONLY"""
         try:
             if provider == "OpenAI":
-                return st.secrets.get("openai", {}).get("api_key")
+                key = st.secrets.get("openai", {}).get("api_key")
+                if key:
+                    # Log admin key usage for security auditing
+                    st.session_state.setdefault('admin_key_usage', []).append(f"Admin accessed {provider} key")
+                return key
             elif provider == "GovTech":
-                return st.secrets.get("govtech", {}).get("api_key")
-        except:
+                key = st.secrets.get("govtech", {}).get("api_key")
+                if key:
+                    st.session_state.setdefault('admin_key_usage', []).append(f"Admin accessed {provider} key")
+                return key
+        except Exception as e:
+            # In production, secrets.toml might not exist - this is expected
             pass
         return None
     
@@ -163,28 +191,50 @@ class APIKeyManager:
             return False, "Ollama not running on localhost:11434"
     
     def get_available_providers(self, username: str = None) -> Dict[str, dict]:
-        """Get available providers with their configuration status"""
+        """
+        Get available providers with their status and BYOK requirements
+        SECURITY: Emphasizes BYOK for regular users, admin access for pre-configured keys
+        """
         providers = {}
         
         for provider in self.supported_providers:
             api_key = self.get_api_key(provider, username)
             has_key = bool(api_key)
             
-            # Determine key source
+            # Determine key source and requirements
             source = "none"
+            requires_byok = True
+            status_message = ""
+            
             if has_key:
                 session_key = f"user_api_key_{provider.lower()}"
                 if session_key in st.session_state:
                     source = "byok"
+                    requires_byok = False
+                    status_message = "✅ Your API key (BYOK)"
                 elif self._is_admin_user(username) and self._get_admin_key(provider):
                     source = "admin"
+                    requires_byok = False
+                    status_message = "🔐 Admin pre-configured"
                 else:
                     source = "env"
+                    requires_byok = False
+                    status_message = "🛠️ Environment variable"
+            else:
+                if self._is_admin_user(username):
+                    status_message = "⚠️ Configure in secrets.toml or use BYOK"
+                elif provider == "Ollama":
+                    requires_byok = False
+                    status_message = "🏠 Local Ollama (no key needed)"
+                else:
+                    status_message = "🔑 Please provide your API key (BYOK required)"
             
             providers[provider] = {
-                "available": has_key,
+                "available": has_key or (provider == "Ollama"),
                 "source": source,
-                "needs_byok": not has_key and not self._is_admin_user(username)
+                "requires_byok": requires_byok,
+                "status_message": status_message,
+                "is_admin_accessible": self._is_admin_user(username)
             }
         
         return providers

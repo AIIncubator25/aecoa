@@ -22,13 +22,13 @@ import streamlit as st
 from .core.api_key_manager import api_key_manager
 
 # Agent imports organized by function
-from .extractors.agent1_yaml_extractor import YAMLParameterExtractor
+from .parsers.agent1_unified_processor import UnifiedDocumentProcessor
 from .analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
 from .reporters.agent3_executive_reporter import ExecutiveReportGenerator
-from .reporters.agent4_insights_report import InsightsReportGenerator
+from .reporters.agent4_insights_report import InsightsReportAgent
 
 # Supporting components  
-from .providers import ProviderManager
+from .providers import call_provider
 from .model_manager import ModelManager
 
 
@@ -60,10 +60,10 @@ class AgenticWorkflowOrchestrator:
                 api_key = api_key_manager.get_api_key(provider, username)
             
             self.agents = {
-                "agent1": YAMLParameterExtractor(model),
+                "agent1": UnifiedDocumentProcessor(provider, model),
                 "agent2": DrawingAnalysisAgent(provider, model),
                 "agent3": ExecutiveReportGenerator(provider, model),
-                "agent4": InsightsReportGenerator(provider, model)
+                "agent4": InsightsReportAgent(provider, model)
             }
             
             # Set agent prompts if provided
@@ -207,6 +207,41 @@ class AgenticWorkflowOrchestrator:
             workflow_results["error"] = error_result
             return False, workflow_results
     
+    def _execute_step0(self, document_content: bytes, filename: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
+        """Execute Agent 0: Document to YAML Conversion"""
+        try:
+            # Check if agents are initialized
+            if not self.agents or "agent0" not in self.agents:
+                return False, {"error": "Agent 0 not initialized. Please click 'Initialize Agents' first."}
+            
+            agent0 = self.agents["agent0"]
+            success, result = agent0.parse_document_to_yaml(document_content, filename, selected_api_key)
+            
+            if success:
+                self.log_execution("step0_success", {
+                    "filename": filename,
+                    "conversion_method": result.get('conversion_method', 'AI'),
+                    "yaml_length": len(result.get('yaml_content', ''))
+                })
+                
+                # Store results for next step
+                self.step0_result = result
+                
+                return True, {
+                    "yaml_content": result.get('yaml_content'),
+                    "document_preview": result.get('document_preview'),
+                    "conversion_method": result.get('conversion_method'),
+                    "filename": filename,
+                    "message": f"Successfully converted {filename} to YAML"
+                }
+            else:
+                self.log_execution("step0_error", {"error": result.get('error', 'Unknown error')})
+                return False, {"error": f"Step 0 failed: {result.get('error', 'Unknown error')}"}
+                
+        except Exception as e:
+            self.log_execution("step0_exception", {"exception": str(e)})
+            return False, {"error": f"Step 0 exception: {str(e)}"}
+
     def _execute_step1(self, yaml_content: str, yaml_file_path: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
         """Execute Agent 1: Parameter Definition"""
         try:

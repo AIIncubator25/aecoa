@@ -1,0 +1,103 @@
+# Missing JsonLogic Rules Section for 2.10_HS_Beneath_Internal_Staircase.yaml
+
+  # 9) JsonLogic rules (machine-readable for faster processing)
+  jsonlogic_rules:
+    # Simple value comparisons
+    - name: "hs_ceiling_slab_thickness minimum check"
+      description: "Ceiling slab thickness must be at least 300mm"
+      rule: {">=" : [{"var": "hs_ceiling_slab_thickness_mm"}, 300]}
+      reference: "2.10(c)"
+      severity: "error"
+    
+    - name: "staircase_waist_thickness minimum check"
+      description: "Staircase waist thickness must be at least 300mm"
+      rule: {">=" : [{"var": "staircase_waist_thickness_mm"}, 300]}
+      reference: "2.10(c)"
+      severity: "error"
+    
+    - name: "vent_sleeve_clearance minimum check"
+      description: "Ventilation sleeve clearance must be at least 700mm"
+      rule: {">=" : [{"var": "vent_sleeve_wall_clearance_mm"}, 700]}
+      reference: "2.10(d)"
+      severity: "error"
+    
+    # Table-based range lookups with GFA conditions
+    - name: "minimum_floor_area_check_gfa_under_40"
+      description: "Floor area must meet table requirements for GFA < 40"
+      rule: {"if": [
+        {"<": [{"var": "gfa_m2"}, 40]},
+        {">=": [{"var": "hs_area_clear_ge_1500_mm_m2"}, 1.44]},
+        true
+      ]}
+      reference: "Table 2.2.1(b)"
+      severity: "error"
+    
+    - name: "minimum_floor_area_check_gfa_40_45"
+      description: "Floor area must meet table requirements for 40 < GFA < 45"
+      rule: {"if": [
+        {"and": [{">=": [{"var": "gfa_m2"}, 40]}, {"<": [{"var": "gfa_m2"}, 45]}]},
+        {">=": [{"var": "hs_area_clear_ge_1500_mm_m2"}, 1.60]},
+        true
+      ]}
+      reference: "Table 2.2.1(b)"
+      severity: "error"
+    
+    - name: "minimum_floor_area_check_gfa_45_75"
+      description: "Floor area must meet table requirements for 45 < GFA < 75"
+      rule: {"if": [
+        {"and": [{">=": [{"var": "gfa_m2"}, 45]}, {"<": [{"var": "gfa_m2"}, 75]}]},
+        {">=": [{"var": "hs_area_clear_ge_1500_mm_m2"}, 2.20]},
+        true
+      ]}
+      reference: "Table 2.2.1(b)"
+      severity: "error"
+    
+    - name: "minimum_floor_area_check_gfa_75_140"
+      description: "Floor area must meet table requirements for 75 < GFA < 140"
+      rule: {"if": [
+        {"and": [{">=": [{"var": "gfa_m2"}, 75]}, {"<": [{"var": "gfa_m2"}, 140]}]},
+        {">=": [{"var": "hs_area_clear_ge_1500_mm_m2"}, 2.80]},
+        true
+      ]}
+      reference: "Table 2.2.1(b)"
+      severity: "error"
+    
+    - name: "minimum_floor_area_check_gfa_over_140"
+      description: "Floor area must meet table requirements for GFA > 140"
+      rule: {"if": [
+        {">": [{"var": "gfa_m2"}, 140]},
+        {">=": [{"var": "hs_area_clear_ge_1500_mm_m2"}, 3.40]},
+        true
+      ]}
+      reference: "Table 2.2.1(b)"
+      severity: "error"
+    
+    # Volume checks with GFA conditions
+    - name: "minimum_volume_check_comprehensive"
+      description: "Volume must meet table requirements based on GFA range"
+      rule: {"or": [
+        {"and": [{"<": [{"var": "gfa_m2"}, 40]}, {">=": [{"var": "hs_enclosed_volume_m3"}, 3.6]}]},
+        {"and": [{">=": [{"var": "gfa_m2"}, 40]}, {"<": [{"var": "gfa_m2"}, 45]}, {">=": [{"var": "hs_enclosed_volume_m3"}, 3.6]}]},
+        {"and": [{">=": [{"var": "gfa_m2"}, 45]}, {"<": [{"var": "gfa_m2"}, 75]}, {">=": [{"var": "hs_enclosed_volume_m3"}, 5.4]}]},
+        {"and": [{">=": [{"var": "gfa_m2"}, 75]}, {"<": [{"var": "gfa_m2"}, 140]}, {">=": [{"var": "hs_enclosed_volume_m3"}, 7.2]}]},
+        {"and": [{">": [{"var": "gfa_m2"}, 140]}, {">=": [{"var": "hs_enclosed_volume_m3"}, 9.0]}]}
+      ]}
+      reference: "Table 2.2.1(c)"
+      severity: "error"
+    
+    # Conditional requirements for irregular shapes
+    - name: "square_unit_check_for_irregular_shapes"
+      description: "Square unit validation for trapezoidal/L-shaped HS"
+      rule: {"if": [
+        {"in": [{"var": "hs_shape"}, ["trapezoidal", "L-shaped", "L_shaped"]]},
+        {"or": [
+          {"and": [{"<": [{"var": "gfa_m2"}, 40]}, {">=": [{"var": "hs_square_units_0_6m"}, 3]}]},
+          {"and": [{">=": [{"var": "gfa_m2"}, 40]}, {"<": [{"var": "gfa_m2"}, 45]}, {">=": [{"var": "hs_square_units_0_6m"}, 3]}]},
+          {"and": [{">=": [{"var": "gfa_m2"}, 45]}, {"<": [{"var": "gfa_m2"}, 75]}, {">=": [{"var": "hs_square_units_0_6m"}, 4]}]},
+          {"and": [{">=": [{"var": "gfa_m2"}, 75]}, {"<": [{"var": "gfa_m2"}, 140]}, {">=": [{"var": "hs_square_units_0_6m"}, 5]}]},
+          {"and": [{">": [{"var": "gfa_m2"}, 140]}, {">=": [{"var": "hs_square_units_0_6m"}, 6]}]}
+        ]},
+        true
+      ]}
+      reference: "Table 2.2.1(c)"
+      severity: "error"
