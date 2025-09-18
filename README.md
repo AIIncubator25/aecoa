@@ -1,6 +1,16 @@
-# 🏗️ AECOA - AI-Enhanced Compliance & Optimization Assistant
-
-> **Automated compliance checking using AI agents for YAML requirements and technical drawings**
+# 🏗️ AECOA - AI-Enhanced Compliance & Optimization As│   ├── .streamlit/
+│   │   ├── secrets.toml         # 🔒 API keys (local, git-ignored)
+│   │   └── secrets.example.toml # 📝 API key template
+│   ├── BYOK_SETUP.md           # 🔑 Bring Your Own Key setup guide
+│   └── README.md               # 📖 This comprehensive guide
+│
+├── 📁 Documentation Archive
+│   └── docs/                    # 📚 Detailed guides and references
+│       ├── LOCAL_LLAMA_SETUP.md    # 🦙 Local Ollama setup guide
+│       ├── GOVTECH_API_GUIDE.md    # 🏛️ Government API integration guide
+│       ├── DEPLOYMENT_GUIDE.md     # 🚀 Deployment instructions
+│       ├── DEPLOYMENT_SUMMARY.md   # ⚡ Quick deployment reference
+│       └── NETWORK_TROUBLESHOOTING.md # 🔧 Network & connectivity troubleshooting**Automated compliance checking using AI agents for YAML requirements and technical drawings**
 
 ## 🎯 Overview
 
@@ -56,17 +66,19 @@ AECOA is a sophisticated multi-agent AI system designed for architectural and en
 │   │   ├── secrets.toml         # 🔒 API keys (local, git-ignored)
 │   │   └── secrets.example.toml # 📝 API key template
 │   ├── BYOK_SETUP.md           # 🔑 Bring Your Own Key setup guide
-│   ├── DEPLOYMENT_GUIDE.md     # 🚀 Deployment instructions
-│   └── LOCAL_LLAMA_SETUP.md    # 🦙 Local Ollama setup guide
+│   ├── NETWORK_TROUBLESHOOTING.md # � Network & connectivity troubleshooting
+│   └── README.md               # 📖 This comprehensive guide
+│
+├── 📁 Documentation Archive
+│   └── docs/                    # � Detailed guides and references
+│       ├── LOCAL_LLAMA_SETUP.md    # 🦙 Local Ollama setup guide
+│       ├── GOVTECH_API_GUIDE.md    # 🏛️ Government API integration guide
+│       ├── DEPLOYMENT_GUIDE.md     # 🚀 Deployment instructions
+│       └── DEPLOYMENT_SUMMARY.md   # ⚡ Quick deployment reference
 │
 ├── 📁 Data & Uploads
 │   └── uploads/                 # 📂 User-uploaded files (git-ignored for security)
 │       └── .gitkeep            # Maintains directory structure
-│
-└── 📚 Documentation
-    ├── README.md               # 📖 This comprehensive guide
-    ├── GOVTECH_API_GUIDE.md    # 🏛️ Government API integration guide
-    └── DEPLOYMENT_SUMMARY.md   # ⚡ Quick deployment reference
 ```
 
 ## 🔄 Workflow Process
