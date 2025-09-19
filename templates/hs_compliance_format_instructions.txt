@@ -1,0 +1,40 @@
+CUSTOM OUTPUT FORMAT SPECIFICATION
+
+Generate output in the following format:
+
+1. **TABLE STRUCTURE:**
+   - Use the exact column structure from the attached CSV template
+   - Include two main sections: "Requirements" and "Identified Household Shelter (HS) Values"
+   - First row should be section headers
+   - Second row should be detailed column headers
+
+2. **COLUMN REQUIREMENTS:**
+   Requirements Section:
+   - No: Sequential numbering (1, 2, 3, ...)
+   - Clause: Building code reference (e.g., "2.10(a)&(b)")
+   - Parameter: Description of the requirement
+   - Min. Rectilinear HS Countable Area: Minimum area for rectangular spaces
+   - Min. Irregular HS Countable Area: Minimum area for irregular spaces  
+   - Unit: Measurement unit (m2, mm, etc.)
+   - Min. Volume (m3): Minimum volume requirement
+
+   Identified Values Section:
+   - Unit Area: Found unit area from drawings
+   - HS Area: Found household shelter area
+   - HS Volume: Found household shelter volume
+   - HS Slab Thickness: Found slab thickness
+   - HS underneath Staircase Waist Thickness: Found waist thickness
+   - Compliance (Y/N): Use Y/N instead of Compliant/Non-Compliant
+   - Reference Drawing: Specific drawing sheet reference
+
+3. **DATA POPULATION:**
+   - Fill all identified values from drawing analysis
+   - Leave empty cells blank if information not found
+   - Use Y for compliant, N for non-compliant
+   - Provide specific drawing references (sheet names, detail numbers)
+
+4. **FORMAT REQUIREMENTS:**
+   - Generate as CSV format with proper comma separation
+   - Include header rows as shown in template
+   - Ensure all data aligns with column headers
+   - Use consistent formatting for all entries

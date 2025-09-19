@@ -1,0 +1,6 @@
+# Output Directory Structure
+This directory contains all generated outputs from AECOA processing:
+
+- parameters/: JSON parameter files from Step 1 (YAML to JSON conversion)
+- analysis/: Drawing analysis results from Step 2
+- drawings/: Processed drawing files and metadata

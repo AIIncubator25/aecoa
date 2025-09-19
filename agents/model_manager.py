@@ -36,6 +36,39 @@ class ModelManager:
         
     # Latest OpenAI Models (as of September 2024)
     OPENAI_MODELS = {
+        # Simple aliases for GPT-5 naming
+        "gpt-5": ModelInfo(
+            name="gpt-5",
+            provider="OpenAI",
+            description=(
+                "GPT-5 main model - advanced multimodal reasoning "
+                "(alias of gpt-5-main)"
+            ),
+            context_length=200000,
+            supports_vision=True,
+            cost_per_1k_tokens=0.020,
+            recommended_for=[
+                "advanced compliance analysis",
+                "complex reasoning",
+                "regulatory interpretation",
+            ],
+        ),
+        "gpt-5-mini": ModelInfo(
+            name="gpt-5-mini",
+            provider="OpenAI",
+            description=(
+                "GPT-5 mini - efficient next-gen model "
+                "(alias of gpt-5-main-mini)"
+            ),
+            context_length=200000,
+            supports_vision=True,
+            cost_per_1k_tokens=0.008,
+            recommended_for=[
+                "cost-effective advanced analysis",
+                "high-volume processing",
+                "general tasks",
+            ],
+        ),
         # GPT-5 Series (Next Generation)
         "gpt-5-main": ModelInfo(
             name="gpt-5-main",
@@ -44,7 +77,11 @@ class ModelManager:
             context_length=200000,
             supports_vision=True,
             cost_per_1k_tokens=0.020,
-            recommended_for=["advanced compliance analysis", "complex reasoning", "regulatory interpretation"]
+            recommended_for=[
+                "advanced compliance analysis",
+                "complex reasoning",
+                "regulatory interpretation",
+            ],
         ),
         "gpt-5-main-mini": ModelInfo(
             name="gpt-5-main-mini",
@@ -53,7 +90,11 @@ class ModelManager:
             context_length=200000,
             supports_vision=True,
             cost_per_1k_tokens=0.008,
-            recommended_for=["cost-effective advanced analysis", "high-volume processing", "general tasks"]
+            recommended_for=[
+                "cost-effective advanced analysis",
+                "high-volume processing",
+                "general tasks",
+            ],
         ),
         "gpt-5-thinking": ModelInfo(
             name="gpt-5-thinking",
@@ -97,7 +138,7 @@ class ModelManager:
         # GPT-4o Series (Current Generation)
         "gpt-4o": ModelInfo(
             name="gpt-4o",
-            provider="OpenAI", 
+            provider="OpenAI",
             description="GPT-4o - most capable current model, multimodal",
             context_length=128000,
             supports_vision=True,
@@ -122,7 +163,11 @@ class ModelManager:
             context_length=128000,
             supports_vision=False,
             cost_per_1k_tokens=0.015,
-            recommended_for=["complex problem solving", "regulatory analysis", "compliance reasoning"]
+            recommended_for=[
+                "complex problem solving",
+                "regulatory analysis",
+                "compliance reasoning",
+            ],
         ),
         "o1-mini": ModelInfo(
             name="o1-mini",
@@ -171,6 +216,37 @@ class ModelManager:
         try:
             # GovTech models - using same model catalog as OpenAI
             govtech_models = {
+                # Simple aliases for GPT-5 naming
+                "gpt-5": ModelInfo(
+                    name="gpt-5",
+                    provider="GovTech",
+                    description=(
+                        "GPT-5 via GovTech gateway - advanced multimodal reasoning "
+                        "(alias of gpt-5-main)"
+                    ),
+                    context_length=200000,
+                    supports_vision=True,
+                    recommended_for=[
+                        "government compliance",
+                        "advanced analysis",
+                        "secure processing",
+                    ],
+                ),
+                "gpt-5-mini": ModelInfo(
+                    name="gpt-5-mini",
+                    provider="GovTech",
+                    description=(
+                        "GPT-5 mini via GovTech gateway - efficient "
+                        "(alias of gpt-5-main-mini)"
+                    ),
+                    context_length=200000,
+                    supports_vision=True,
+                    recommended_for=[
+                        "government compliance",
+                        "cost-effective processing",
+                        "high-volume tasks",
+                    ],
+                ),
                 # GPT-5 Series via GovTech
                 "gpt-5-main": ModelInfo(
                     name="gpt-5-main",
@@ -178,7 +254,11 @@ class ModelManager:
                     description="GPT-5 main via GovTech gateway - most advanced",
                     context_length=200000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "advanced analysis", "secure processing"]
+                    recommended_for=[
+                        "government compliance",
+                        "advanced analysis",
+                        "secure processing",
+                    ],
                 ),
                 "gpt-5-main-mini": ModelInfo(
                     name="gpt-5-main-mini",
@@ -186,7 +266,11 @@ class ModelManager:
                     description="GPT-5 mini via GovTech gateway - efficient",
                     context_length=200000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "cost-effective processing", "high-volume tasks"]
+                    recommended_for=[
+                        "government compliance",
+                        "cost-effective processing",
+                        "high-volume tasks",
+                    ],
                 ),
                 "gpt-5-thinking": ModelInfo(
                     name="gpt-5-thinking",
@@ -194,7 +278,11 @@ class ModelManager:
                     description="GPT-5 thinking via GovTech gateway - enhanced reasoning",
                     context_length=200000,
                     supports_vision=False,
-                    recommended_for=["complex regulatory analysis", "compliance reasoning", "secure environment"]
+                    recommended_for=[
+                        "complex regulatory analysis",
+                        "compliance reasoning",
+                        "secure environment",
+                    ],
                 ),
                 "gpt-5-thinking-mini": ModelInfo(
                     name="gpt-5-thinking-mini",
@@ -212,7 +300,11 @@ class ModelManager:
                     description="GPT-4.1 enhanced via GovTech gateway",
                     context_length=128000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "document analysis", "secure processing"]
+                    recommended_for=[
+                        "government compliance",
+                        "document analysis",
+                        "secure processing",
+                    ],
                 ),
                 "gpt-4.1-mini": ModelInfo(
                     name="gpt-4.1-mini",
@@ -220,7 +312,11 @@ class ModelManager:
                     description="GPT-4.1 mini via GovTech gateway",
                     context_length=128000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "efficient processing", "routine checks"]
+                    recommended_for=[
+                        "government compliance",
+                        "efficient processing",
+                        "routine checks",
+                    ],
                 ),
                 
                 # GPT-4o Series via GovTech
@@ -230,7 +326,11 @@ class ModelManager:
                     description="GPT-4o via GovTech gateway",
                     context_length=128000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "multimodal analysis", "secure processing"]
+                    recommended_for=[
+                        "government compliance",
+                        "multimodal analysis",
+                        "secure processing",
+                    ],
                 ),
                 "gpt-4o-mini": ModelInfo(
                     name="gpt-4o-mini",
@@ -238,7 +338,11 @@ class ModelManager:
                     description="GPT-4o mini via GovTech gateway",
                     context_length=128000,
                     supports_vision=True,
-                    recommended_for=["government compliance", "cost-effective processing", "high-volume tasks"]
+                    recommended_for=[
+                        "government compliance",
+                        "cost-effective processing",
+                        "high-volume tasks",
+                    ],
                 ),
                 
                 # Legacy models for compatibility
@@ -248,7 +352,11 @@ class ModelManager:
                     description="GPT-4 via GovTech gateway",
                     context_length=8192,
                     supports_vision=False,
-                    recommended_for=["government compliance", "regulatory analysis", "secure processing"]
+                    recommended_for=[
+                        "government compliance",
+                        "regulatory analysis",
+                        "secure processing",
+                    ],
                 ),
                 "gpt-3.5-turbo": ModelInfo(
                     name="gpt-3.5-turbo",
@@ -256,7 +364,11 @@ class ModelManager:
                     description="GPT-3.5 Turbo via GovTech gateway",
                     context_length=16385,
                     supports_vision=False,
-                    recommended_for=["government compliance", "cost-effective processing", "secure environment"]
+                    recommended_for=[
+                        "government compliance",
+                        "cost-effective processing",
+                        "secure environment",
+                    ],
                 )
             }
             
@@ -316,7 +428,12 @@ class ModelManager:
         try:
             if os.path.exists(ollama_models_path):
                 # Check manifests directory for installed models
-                manifests_path = os.path.join(ollama_models_path, "manifests", "registry.ollama.ai", "library")
+                manifests_path = os.path.join(
+                    ollama_models_path,
+                    "manifests",
+                    "registry.ollama.ai",
+                    "library",
+                )
                 if os.path.exists(manifests_path):
                     for model_dir in os.listdir(manifests_path):
                         model_path = os.path.join(manifests_path, model_dir)
@@ -326,12 +443,16 @@ class ModelManager:
                                 if version_file != "latest":  # Skip 'latest' symlink
                                     model_name = f"{model_dir}:{version_file}"
                                     if model_name not in ollama_models:
-                                        ollama_models[model_name] = self._create_ollama_model_info(model_name)
+                                        ollama_models[model_name] = self._create_ollama_model_info(
+                                            model_name
+                                        )
                                     
                                 # Also add the base model name
                                 base_model = f"{model_dir}:latest"
                                 if base_model not in ollama_models:
-                                    ollama_models[base_model] = self._create_ollama_model_info(base_model)
+                                    ollama_models[base_model] = self._create_ollama_model_info(
+                                        base_model
+                                    )
         except Exception as e:
             logger.warning(f"Could not scan local Ollama directory: {e}")
         
@@ -350,8 +471,9 @@ class ModelManager:
     def _create_ollama_model_info(self, model_name: str) -> ModelInfo:
         """Create ModelInfo for an Ollama model"""
         # Determine model capabilities based on name
-        supports_vision = any(keyword in model_name.lower() 
-                            for keyword in ['llava', 'vision', 'multimodal'])
+        supports_vision = any(
+            keyword in model_name.lower() for keyword in ['llava', 'vision', 'multimodal']
+        )
         
         # Determine recommended use cases
         recommended = ["local processing", "privacy-focused", "offline capable"]
@@ -386,7 +508,9 @@ class ModelManager:
         else:
             return 4096  # Conservative default
     
-    def get_all_models(self, provider_configs: Dict[str, Dict] = None) -> Dict[str, Dict[str, ModelInfo]]:
+    def get_all_models(
+        self, provider_configs: Dict[str, Dict] = None
+    ) -> Dict[str, Dict[str, ModelInfo]]:
         """Get all available models from all providers"""
         all_models = {}
         
@@ -438,6 +562,30 @@ class ModelManager:
         all_models = self.get_all_models()
         provider_models = all_models.get(provider, {})
         return provider_models.get(model_name)
+
+    # Convenience for UI: list models per provider with basic capability filtering
+    def get_models(self, provider: str, vision_required: bool = True) -> List[str]:
+        """Return model names for a provider, optionally requiring vision support.
+
+        Applies pragmatic filtering to avoid unsupported combos, e.g., GovTech gpt-5
+        not supporting image analysis at this time.
+        """
+        try:
+            provider = (provider or '').strip()
+            all_by_provider = self.get_all_models()
+            models = all_by_provider.get(provider, {})
+            names: List[str] = []
+            for name, info in models.items():
+                if vision_required and not getattr(info, 'supports_vision', False):
+                    continue
+                # GovTech gateway: exclude gpt-5* for image analysis to prevent failures
+                if provider == 'GovTech' and name.lower().startswith('gpt-5'):
+                    continue
+                names.append(name)
+            return sorted(names)
+        except Exception as exc:
+            logger.warning(f"get_models failed for provider {provider}: {exc}")
+            return []
 
 # Global instance
 model_manager = ModelManager()

@@ -1,0 +1,71 @@
+🏢 **EXECUTIVE BUSINESS INTELLIGENCE MISSION** 
+Transform technical compliance data into strategic business intelligence and actionable C-level recommendations.
+
+📊 **COMPLIANCE DATA FOR ANALYSIS:** 
+{context_json}
+
+🎯 **BUSINESS INTELLIGENCE ANALYSIS FRAMEWORK:** 
+**Phase 1: Business Context Assessment** 
+• Understand the business implications of each compliance finding 
+• Assess regulatory, operational, and financial risks 
+• Identify strategic opportunities within compliance requirements 
+• Evaluate market and competitive implications 
+
+**Phase 2: Risk Stratification & Impact Analysis** 
+• **Critical Business Risks**: Items affecting regulatory approvals, safety, legal exposure 
+• **High Impact Issues**: Significant operational or financial consequences 
+• **Medium Priority Items**: Important but manageable compliance gaps 
+• **Low Impact Areas**: Minor issues with minimal business consequence 
+
+**Phase 3: Strategic Pattern Recognition** 
+• Identify systemic compliance patterns and root causes 
+• Recognize compliance strengths that can be leveraged competitively 
+• Spot trends indicating future compliance trajectory 
+• Analyze resource efficiency opportunities 
+
+**Phase 4: Executive-Level Strategic Planning** 
+• Develop prioritized action plans with clear business justification 
+• Estimate costs, timelines, and resource requirements 
+• Define success metrics and KPIs for compliance improvement 
+• Align recommendations with broader business strategy 
+
+🚨 **COMPLIANCE STATUS BUSINESS INTERPRETATION:** 
+• **✓ Meets**: Compliance strength - leverage as competitive advantage 
+• **✓ Meets (marginal)**: Monitor closely - potential future risk 
+• **✗ Below min**: Business risk - requires strategic remediation plan 
+• **✗ Critical**: Executive emergency - immediate C-level attention required 
+• **⚠ Check**: Business uncertainty - invest in verification to reduce risk 
+• **⚠ Verify**: Likely compliant - confirm to strengthen business position 
+• **− Not applicable**: Non-issue - allocate resources elsewhere 
+• **− TBD**: Strategic dependency - plan for future determination 
+
+💼 **EXECUTIVE ANALYSIS REQUIREMENTS:** 
+**Business Impact Assessment** 
+• Financial exposure and cost-benefit analysis 
+• Regulatory approval timeline and probability assessment 
+• Operational continuity and efficiency implications 
+• Market positioning and competitive advantage considerations 
+• Stakeholder and reputation risk evaluation 
+
+**Strategic Recommendation Development** 
+• Prioritize actions by business impact and resource efficiency 
+• Provide clear ROI justification for compliance investments 
+• Define specific success criteria and measurement approaches 
+• Identify responsible stakeholders and escalation paths 
+• Consider contingency plans and risk mitigation strategies 
+
+🎯 **KEY DELIVERABLES FOR EXECUTIVES:** 
+1. **Dashboard Summary**: High-level status suitable for board presentation 
+2. **Risk Analysis**: Business risks categorized by impact and urgency 
+3. **Action Plan**: Prioritized recommendations with timelines and costs 
+4. **Success Metrics**: KPIs to track compliance improvement progress 
+5. **Stakeholder Communication**: Key messages for different audiences 
+
+⚡ **BUSINESS INTELLIGENCE SUCCESS FACTORS:** 
+• **Strategic Alignment**: Align compliance with business objectives
+• **Data-Driven Decisions**: Base recommendations on quantified analysis
+• **Stakeholder Value**: Address needs of different organizational levels
+• **Implementation Focus**: Provide actionable, executable recommendations
+• **Success Measurement**: Define clear metrics and tracking mechanisms
+
+Generate executive-grade business intelligence that enables confident strategic decision-making.

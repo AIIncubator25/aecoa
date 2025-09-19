@@ -8,6 +8,7 @@ import requests
 import json
 import base64
 import re
+import yaml
 from pathlib import Path
 from typing import Tuple, Dict, Any, List
 from ..utils.prompt_manager import load_agent_prompts
@@ -30,6 +31,11 @@ class DrawingAnalysisAgent:
         self.prompt = load_agent_prompts("agent2")
         # Initialize compliance template system
         self.compliance_templates = self._load_compliance_templates()
+        self.current_domain = 'hs_household_shelter'  # Default domain
+        
+        # Load HS scenario configurations for scalability
+        self.hs_scenarios = self._load_hs_scenarios()
+        self.current_scenario = None  # Will be set based on analysis context
         
     def _load_compliance_templates(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -91,8 +97,41 @@ class DrawingAnalysisAgent:
                     'Reinforcement': ['reinforcement', 'rebar', 'steel reinforcement']
                 }
             }
-        }
+            }
+        
         return templates
+    
+    def _load_hs_scenarios(self) -> Dict[str, Any]:
+        """Load HS scenario configurations for different project types."""
+        try:
+            # Get project root
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(current_dir))
+            scenarios_path = os.path.join(project_root, 'configurations', 'hs_scenarios.yaml')
+            
+            if os.path.exists(scenarios_path):
+                with open(scenarios_path, 'r', encoding='utf-8') as f:
+                    scenarios_data = yaml.safe_load(f)
+                print(f"[DEBUG] Loaded {len(scenarios_data.get('scenarios', {}))} HS scenarios")
+                return scenarios_data
+            else:
+                print(f"[WARNING] HS scenarios file not found: {scenarios_path}")
+                return {'scenarios': {}, 'default_scenario': 'residential_standard'}
+        except Exception as e:
+            print(f"[ERROR] Failed to load HS scenarios: {e}")
+            return {'scenarios': {}, 'default_scenario': 'residential_standard'}
+    
+    def set_hs_scenario(self, scenario_name: str):
+        """Set the HS scenario for analysis (e.g., 'residential_standard', 'hdb_standard')."""
+        scenarios = self.hs_scenarios.get('scenarios', {})
+        if scenario_name in scenarios:
+            self.current_scenario = scenario_name
+            print(f"[DEBUG] Set HS scenario to: {scenarios[scenario_name]['name']}")
+        else:
+            available_scenarios = list(scenarios.keys())
+            default_scenario = self.hs_scenarios.get('default_scenario', 'residential_standard')
+            print(f"[WARNING] Unknown scenario '{scenario_name}'. Available: {available_scenarios}")
+            self.current_scenario = default_scenario
     
     def set_compliance_domain(self, domain: str):
         """
@@ -336,7 +375,10 @@ class DrawingAnalysisAgent:
                     if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'text'):
                         text_content = entity.dxf.text.strip()
                         if text_content:
-                            extracted_text.append(f"TEXT: {text_content}")
+                            # Include layer and text height for context
+                            layer = getattr(entity.dxf, 'layer', 'UNKNOWN') 
+                            height = getattr(entity.dxf, 'height', 0)
+                            extracted_text.append(f"TEXT[{layer}|H:{height:.1f}]: {text_content}")
                 
                 # Extract MTEXT entities (multi-line text)
                 for entity in layout.query('MTEXT'):
@@ -347,7 +389,23 @@ class DrawingAnalysisAgent:
                             cleaned_text = re.sub(r'\\[A-Za-z][0-9]*;?', '', text_content)
                             cleaned_text = re.sub(r'\{[^}]*\}', '', cleaned_text)
                             if cleaned_text.strip():
-                                extracted_text.append(f"MTEXT: {cleaned_text.strip()}")
+                                layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                                extracted_text.append(f"MTEXT[{layer}]: {cleaned_text.strip()}")
+                
+                # Extract DIMENSION entities (dimension text)
+                for entity in layout.query('DIMENSION'):
+                    if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'text'):
+                        text_content = entity.dxf.text.strip()
+                        if text_content:
+                            layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                            extracted_text.append(f"DIM[{layer}]: {text_content}")
+                
+                # Extract LEADER entities (callout text)
+                for entity in layout.query('LEADER'):
+                    if hasattr(entity, 'dxf'):
+                        # Leaders often have associated text entities
+                        layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                        extracted_text.append(f"LEADER[{layer}]: Found callout")
                 
                 # Extract ATTRIB entities (attributes in blocks)
                 for entity in layout.query('ATTRIB'):
@@ -355,19 +413,30 @@ class DrawingAnalysisAgent:
                         text_content = entity.dxf.text.strip()
                         if text_content:
                             tag = getattr(entity.dxf, 'tag', 'UNKNOWN')
-                            extracted_text.append(f"ATTRIB[{tag}]: {text_content}")
+                            layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                            extracted_text.append(f"ATTRIB[{tag}|{layer}]: {text_content}")
                 
                 # Extract INSERT entities with attributes (blocks with text)
                 for entity in layout.query('INSERT'):
                     if entity.has_attrib:
                         block_name = entity.dxf.name
-                        extracted_text.append(f"BLOCK: {block_name}")
+                        layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                        extracted_text.append(f"BLOCK[{layer}]: {block_name}")
                         for attrib in entity.attribs:
                             if hasattr(attrib, 'dxf') and hasattr(attrib.dxf, 'text'):
                                 text_content = attrib.dxf.text.strip()
                                 tag = getattr(attrib.dxf, 'tag', 'UNKNOWN')
                                 if text_content:
                                     extracted_text.append(f"  {tag}: {text_content}")
+                
+                # Extract TABLE entities (basic table data if available)
+                try:
+                    for entity in layout.query('ACAD_TABLE'):
+                        if hasattr(entity, 'text'):
+                            layer = getattr(entity.dxf, 'layer', 'UNKNOWN')
+                            extracted_text.append(f"TABLE[{layer}]: Table data found")
+                except:
+                    pass  # ACAD_TABLE might not be available in all DXF versions
                 
                 extracted_text.append("")  # Add blank line between layouts
             

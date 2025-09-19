@@ -24,10 +24,9 @@ from .core.api_key_manager import api_key_manager
 # Agent imports organized by function
 from .parsers.agent1_unified_processor import UnifiedDocumentProcessor
 from .analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
-from .reporters.agent3_executive_reporter import ExecutiveReportGenerator
-from .reporters.agent4_insights_report import InsightsReportAgent
+from .reporters.agent3_combined_reporter import CombinedExecutiveReporter
 
-# Supporting components  
+# Supporting components
 from .providers import call_provider
 from .model_manager import ModelManager
 
@@ -46,7 +45,7 @@ class AgenticWorkflowOrchestrator:
         }
         self.results = {}
     
-    def initialize_agents(self, provider: str, model: str, api_key: str = None, 
+    def initialize_agents(self, provider: str, model: str, api_key: str = None,
                          prompts: Dict = None):
         """Initialize all agents with the selected provider and model"""
         try:
@@ -62,8 +61,7 @@ class AgenticWorkflowOrchestrator:
             self.agents = {
                 "agent1": UnifiedDocumentProcessor(provider, model),
                 "agent2": DrawingAnalysisAgent(provider, model),
-                "agent3": ExecutiveReportGenerator(provider, model),
-                "agent4": InsightsReportAgent(provider, model)
+                "agent3": CombinedExecutiveReporter(provider, model)
             }
             
             # Set agent prompts if provided
@@ -80,18 +78,24 @@ class AgenticWorkflowOrchestrator:
         except Exception as e:
             return False, f"Failed to initialize agents: {str(e)}"
     
-    def execute_workflow(self, 
+    def execute_workflow(self,
                         yaml_content: str = None,
                         yaml_file_path: str = None,
                         image_files: List[str] = None,
                         selected_api_key: str = None,
                         auto_approval: bool = False,
-                        progress_callback: Optional[Callable] = None) -> Tuple[bool, Dict[str, Any]]:
+                        progress_callback: Optional[Callable] = None
+                        ) -> Tuple[bool, Dict[str, Any]]:
         """Execute the complete 4-agent workflow"""
         
         # Check if agents are initialized before starting workflow
         if not self.agents or len(self.agents) != 4:
-            return False, {"error": "Agents not properly initialized. Please click 'Initialize Agents' first."}
+            return False, {
+                "error": (
+                    "Agents not properly initialized. Please click "
+                    "'Initialize Agents' first."
+                )
+            }
         
         self.workflow_state["auto_approval"] = auto_approval
         workflow_results = {"steps": {}, "files_generated": [], "overall_success": False}
@@ -101,7 +105,9 @@ class AgenticWorkflowOrchestrator:
             if progress_callback:
                 progress_callback(1, "🔍 Agent 1: Extracting parameters from YAML...")
             
-            step1_success, step1_result = self._execute_step1(yaml_content, yaml_file_path, selected_api_key)
+            step1_success, step1_result = self._execute_step1(
+                yaml_content, yaml_file_path, selected_api_key
+            )
             workflow_results["steps"]["step1"] = {"success": step1_success, "result": step1_result}
             
             if not step1_success:
@@ -111,7 +117,7 @@ class AgenticWorkflowOrchestrator:
             # Checkpoint 1: Review parameter extraction
             if not auto_approval:
                 checkpoint1_approved = self._checkpoint_approval(
-                    step=1, 
+                    step=1,
                     title="Parameter Definition Review",
                     description="Review extracted parameters from YAML requirements",
                     data=step1_result
@@ -124,7 +130,9 @@ class AgenticWorkflowOrchestrator:
             if progress_callback:
                 progress_callback(2, "📐 Agent 2: Analyzing drawings for measurements...")
             
-            step2_success, step2_result = self._execute_step2(image_files, "parameters.csv", selected_api_key)
+            step2_success, step2_result = self._execute_step2(
+                image_files, "parameters.csv", selected_api_key
+            )
             workflow_results["steps"]["step2"] = {"success": step2_success, "result": step2_result}
             
             if not step2_success:
@@ -135,7 +143,7 @@ class AgenticWorkflowOrchestrator:
             if not auto_approval:
                 checkpoint2_approved = self._checkpoint_approval(
                     step=2,
-                    title="Drawing Analysis Review", 
+                    title="Drawing Analysis Review",
                     description="Review measurements extracted from drawings",
                     data=step2_result
                 )
@@ -147,7 +155,9 @@ class AgenticWorkflowOrchestrator:
             if progress_callback:
                 progress_callback(3, "⚖️ Agent 3: Comparing findings with requirements...")
             
-            step3_success, step3_result = self._execute_step3("parameters.csv", "drawings_analysis.csv", selected_api_key)
+            step3_success, step3_result = self._execute_step3(
+                "parameters.csv", "drawings_analysis.csv", selected_api_key
+            )
             workflow_results["steps"]["step3"] = {"success": step3_success, "result": step3_result}
             
             if not step3_success:
@@ -159,7 +169,7 @@ class AgenticWorkflowOrchestrator:
                 checkpoint3_approved = self._checkpoint_approval(
                     step=3,
                     title="Compliance Analysis Review",
-                    description="Review compliance determination results", 
+                    description="Review compliance determination results",
                     data=step3_result
                 )
                 if not checkpoint3_approved:
@@ -191,7 +201,12 @@ class AgenticWorkflowOrchestrator:
             
             # Workflow completed successfully
             workflow_results["overall_success"] = True
-            workflow_results["files_generated"] = ["defined_parameters.csv", "drawings_analysis.csv", "comparisons.csv", "report.csv"]
+            workflow_results["files_generated"] = [
+                "defined_parameters.csv",
+                "drawings_analysis.csv",
+                "comparisons.csv",
+                "report.csv",
+            ]
             workflow_results["completion_time"] = datetime.now().isoformat()
             
             self.log_execution("workflow_completed", workflow_results)
@@ -207,15 +222,27 @@ class AgenticWorkflowOrchestrator:
             workflow_results["error"] = error_result
             return False, workflow_results
     
-    def _execute_step0(self, document_content: bytes, filename: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
+    def _execute_step0(
+        self,
+        document_content: bytes,
+        filename: str,
+        selected_api_key: str,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """Execute Agent 0: Document to YAML Conversion"""
         try:
             # Check if agents are initialized
             if not self.agents or "agent0" not in self.agents:
-                return False, {"error": "Agent 0 not initialized. Please click 'Initialize Agents' first."}
+                return False, {
+                    "error": (
+                        "Agent 0 not initialized. Please click "
+                        "'Initialize Agents' first."
+                    )
+                }
             
             agent0 = self.agents["agent0"]
-            success, result = agent0.parse_document_to_yaml(document_content, filename, selected_api_key)
+            success, result = agent0.parse_document_to_yaml(
+                document_content, filename, selected_api_key
+            )
             
             if success:
                 self.log_execution("step0_success", {
@@ -242,15 +269,27 @@ class AgenticWorkflowOrchestrator:
             self.log_execution("step0_exception", {"exception": str(e)})
             return False, {"error": f"Step 0 exception: {str(e)}"}
 
-    def _execute_step1(self, yaml_content: str, yaml_file_path: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
+    def _execute_step1(
+        self,
+        yaml_content: str,
+        yaml_file_path: str,
+        selected_api_key: str,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """Execute Agent 1: Parameter Definition"""
         try:
             # Check if agents are initialized
             if not self.agents or "agent1" not in self.agents:
-                return False, {"error": "Agent 1 not initialized. Please click 'Initialize Agents' first."}
+                return False, {
+                    "error": (
+                        "Agent 1 not initialized. Please click "
+                        "'Initialize Agents' first."
+                    )
+                }
             
             agent1 = self.agents["agent1"]
-            success, result = agent1.extract_parameters(yaml_content, yaml_file_path, selected_api_key)
+            success, result = agent1.extract_parameters(
+                yaml_content, yaml_file_path, selected_api_key
+            )
             
             # Save results for future reference
             self.results["step1_parameter_definition"] = {
@@ -268,15 +307,37 @@ class AgenticWorkflowOrchestrator:
         except Exception as e:
             return False, {"error": f"Step 1 failed: {str(e)}"}
     
-    def _execute_step2(self, image_files: List[str], parameters_csv: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
+    def _execute_step2(
+        self,
+        image_files: List[str],
+        parameters_csv: str,
+        selected_api_key: str,
+    ) -> Tuple[bool, Dict[str, Any]]:
         """Execute Agent 2: Drawing Analysis"""
         try:
             # Check if agents are initialized
             if not self.agents or "agent2" not in self.agents:
-                return False, {"error": "Agent 2 not initialized. Please click 'Initialize Agents' first."}
+                return False, {
+                    "error": (
+                        "Agent 2 not initialized. Please click "
+                        "'Initialize Agents' first."
+                    )
+                }
             
             agent2 = self.agents["agent2"]
-            success, result = agent2.analyze_drawings(image_files, parameters_csv, selected_api_key)
+            # Ensure HS domain prompts are loaded for HS analyses
+            try:
+                agent2.set_compliance_domain('hs_household_shelter')
+            except Exception:
+                pass
+                # Prefer intelligent prompts for Step 2 unless caller overrides later
+                if hasattr(agent2, 'set_intelligent_mode'):
+                    try:
+                        agent2.set_intelligent_mode(True)
+                    except Exception as _e:
+                        # Non-fatal; continue with defaults
+                        pass
+                success, result = agent2.analyze_drawings(image_files, parameters_csv, selected_api_key)
             
             # Save results for future reference
             self.results["step2_drawing_analysis"] = {
@@ -295,47 +356,75 @@ class AgenticWorkflowOrchestrator:
         except Exception as e:
             return False, {"error": f"Step 2 failed: {str(e)}"}
     
-    def _execute_step3(self, parameters_csv: str, analysis_csv: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
-        """Execute Agent 3: Compliance Comparison"""
+    def _execute_step3(
+        self,
+        parameters_csv: str,
+        analysis_csv: str,
+        selected_api_key: str,
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """Execute Agent 3: Compliance Comparison and Executive Reporting with Insights"""
         try:
             # Check if agents are initialized
             if not self.agents or "agent3" not in self.agents:
-                return False, {"error": "Agent 3 not initialized. Please click 'Initialize Agents' first."}
+                return False, {
+                    "error": (
+                        "Agent 3 not initialized. Please click "
+                        "'Initialize Agents' first."
+                    )
+                }
             
             agent3 = self.agents["agent3"]
-            success, result = agent3.compare_compliance(parameters_csv, analysis_csv, selected_api_key)
             
-            self.log_execution("step3_completed", {
+            # First, ensure comparison.csv exists
+            comparison_path = "output/comparison.csv"
+            if not os.path.exists(comparison_path):
+                # Generate the comparison CSV first
+                success, compare_result = agent3.compare_compliance(
+                    parameters_csv, analysis_csv, selected_api_key
+                )
+                
+                if not success:
+                    return False, compare_result
+                
+                self.log_execution("step3_compare_completed", {
+                    "success": success,
+                    "compliance_results": compare_result.get("total_parameters", 0) if success else 0,
+                    "csv_generated": "comparisons.csv" in str(compare_result)
+                })
+            
+            # Now process the full report with the combined agent (executive report + insights)
+            result = agent3.process_compliance_report(comparison_path, selected_api_key)
+            
+            success = result.get("report_success", False) and result.get("insights_success", False)
+            
+            self.log_execution("step3_combined_completed", {
                 "success": success,
-                "compliance_results": result.get("total_parameters", 0) if success else 0,
-                "csv_generated": "comparisons.csv" in str(result)
+                "executive_report_generated": result.get("report_success", False),
+                "insights_generated": result.get("insights_success", False),
+                "error": result.get("error")
             })
             
-            return success, result
+            if success:
+                return True, {
+                    "message": "Combined executive report and insights generated successfully",
+                    "executive_report": "output/executive_report.txt",
+                    "insights_csv": "output/executive_insights.csv",
+                    "fallback_insights": "output/insights.csv",
+                    "data_analysis": result.get("data_analysis", {})
+                }
+            else:
+                return False, {"error": result.get("error", "Unknown error in combined reporting")}
+            
         except Exception as e:
             return False, {"error": f"Step 3 failed: {str(e)}"}
     
-    def _execute_step4(self, comparisons_csv: str, selected_api_key: str) -> Tuple[bool, Dict[str, Any]]:
-        """Execute Agent 4: Insights & Report"""
-        try:
-            # Check if agents are initialized
-            if not self.agents or "agent4" not in self.agents:
-                return False, {"error": "Agent 4 not initialized. Please click 'Initialize Agents' first."}
-            
-            agent4 = self.agents["agent4"]  
-            success, result = agent4.generate_insights_report(comparisons_csv, selected_api_key)
-            
-            self.log_execution("step4_completed", {
-                "success": success,
-                "insights_generated": "executive_summary" in str(result) if success else False,
-                "csv_generated": "report.csv" in str(result)
-            })
-            
-            return success, result
-        except Exception as e:
-            return False, {"error": f"Step 4 failed: {str(e)}"}
-    
-    def _checkpoint_approval(self, step: int, title: str, description: str, data: Dict[str, Any]) -> bool:
+    def _checkpoint_approval(
+        self,
+        step: int,
+        title: str,
+        description: str,
+        data: Dict[str, Any],
+    ) -> bool:
         """Handle human-in-the-loop checkpoint approval with Streamlit UI"""
         
         checkpoint_info = {
@@ -359,7 +448,13 @@ class AgenticWorkflowOrchestrator:
         # Manual approval mode - display results and ask for confirmation
         return self._interactive_checkpoint_ui(step, title, description, data)
     
-    def _interactive_checkpoint_ui(self, step: int, title: str, description: str, data: Dict[str, Any]) -> bool:
+    def _interactive_checkpoint_ui(
+        self,
+        step: int,
+        title: str,
+        description: str,
+        data: Dict[str, Any],
+    ) -> bool:
         """Display interactive checkpoint UI and get user approval"""
         import streamlit as st
         
@@ -389,7 +484,10 @@ class AgenticWorkflowOrchestrator:
                 if df[col].dtype == 'object':
                     df[col] = df[col].astype(str)
                     
-            st.info(f"**Found {len(df)} parameters from your YAML requirements.** You can edit them below.")
+            st.info(
+                f"**Found {len(df)} parameters from your YAML requirements.** "
+                "You can edit them below."
+            )
             
             # Use st.data_editor for interactive editing
             edited_df = st.data_editor(
@@ -407,8 +505,8 @@ class AgenticWorkflowOrchestrator:
             if not params_saved:
                 # Show primary button for first save
                 save_button = st.button(
-                    "✅ Save Parameters & Proceed to Drawing Analysis", 
-                    type="primary", 
+                    "✅ Save Parameters & Proceed to Drawing Analysis",
+                    type="primary",
                     use_container_width=True
                 )
                 if save_button:
@@ -437,9 +535,9 @@ class AgenticWorkflowOrchestrator:
             else:
                 # Show black filled button indicating completion
                 completion_button = st.button(
-                    "✅ Parameters Saved Successfully", 
-                    type="secondary", 
-                    use_container_width=True, 
+                    "✅ Parameters Saved Successfully",
+                    type="secondary",
+                    use_container_width=True,
                     disabled=True
                 )
                 

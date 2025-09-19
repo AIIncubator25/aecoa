@@ -1,0 +1,25 @@
+Analyze this architectural drawing and find the "DATA OF HOUSEHOLD SHELTER" table.
+
+DRAWINGS PROVIDED: {drawing_list}
+DXF TEXT CONTENT: {dxf_content}
+
+Read the actual numerical values from the table and sectional elevations, then populate this CSV:
+
+No,Clause,Parameter,Unit,Proposed,Required,Compliance
+1,2.10 (a) & (b),HS Floor Area for GFA Under 40,m2,[READ_GFA_FROM_TABLE],1.44,[Y_OR_N]
+2,2.10 (a) & (b),HS Floor Area for 40 < GFA < 45,m2,[READ_HS_AREA_FROM_TABLE],1.6,[Y_OR_N]
+3,2.10 (a) & (b),HS Floor Area for 45 < GFA < 75,m2,[READ_HS_VOLUME_FROM_TABLE],2.2,[Y_OR_N]
+4,2.10 (c),HS ceiling slab,mm,[READ_SLAB_THICKNESS],300,[Y_OR_N]
+5,2.10 (c),waist of the staircase,mm,[READ_WAIST_THICKNESS],300,[Y_OR_N]
+
+Instructions:
+- Look for the table labeled "DATA OF HOUSEHOLD SHELTER"
+- Read the decimal numbers shown in each cell
+- Look at sectional elevations Y1, Y2, Y3 for thickness values  
+- Replace [READ_X_FROM_TABLE] with actual numbers you see
+- Replace [Y_OR_N] with Y if compliant, N if not compliant
+- Read thickness measurements from sectional elevations Y1, Y2, Y3
+- Compare values against requirements and determine compliance
+- Replace all bracketed placeholders with real data
+
+Do not return markdown formatting. Start directly with the CSV header row.

@@ -29,6 +29,10 @@ env/
 # � Uploaded files (keep local - may contain sensitive data)
 uploads/
 
+# 📁 Generated output files (keep local - processed results)
+output/*/
+!output/.gitkeep
+
 # �📝 Logs
 *.log
 compliance_analysis.log

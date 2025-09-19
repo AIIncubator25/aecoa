@@ -1,0 +1,53 @@
+Analyze the provided technical drawings against the specified requirements using your intelligence and contextual understanding.
+
+REQUIREMENTS TO CHECK:
+{param_context}
+
+DRAWINGS PROVIDED:
+{drawing_list}
+
+ADDITIONAL CONTEXT:
+- Prioritise extracting tabular data from the drawings first. Use tables, schedules, and structured notes as the main source of truth.
+- When encountering a slanted HS slab (inclined or tapered), interpret its thickness as the "waist thickness" requirement under Clause 2.10(c).
+- If multiple sources show different values, use the most detailed table value; otherwise, cross-check dimensions and annotate.
+- Ensure every requirement row has a corresponding attempted "Identified Value".
+ - Table-specific guidance (critical for HS):
+    Locate the HS data table and read exact values (no guessing). Table titles may vary, e.g.: "DATA OF HOUSEHOLD SHELTER", "HOUSEHOLD SHELTER DATA", "HS SCHEDULE", "HS DATA", "HOUSEHOLD SHELTER SCHEDULE".
+    Map the table columns to these fields using semantic matching (accept common variants/abbreviations):
+       • Unit_Area (Unit GFA): "GFA of Unit (m2)", "GFA", "Unit GFA", "Unit Area", "Area of Unit"
+       • HS_Area: "AREA of HS (m2)", "HS Area", "HS AREA"
+       • HS_Volume: "VOLUMN of HS (m3)", "VOLUME of HS", "HS Volume"
+       • HS_Slab_Thickness: "HS Ceiling Slab Thickness (m)", "Ceiling Slab Thickness", "HS Slab Thickness"
+   • HS_Waist_Thickness: if not present in the HS table, extract from Sectional Elevations/Sections (e.g., "Sectional Elevation Y1/Y2", "Section A-A/B-B"). Look for callouts like "waist", "staircase waist", "slanted slab", "inclined slab", or thickness arrows near the HS. Record the thickness value.
+       • Optional: "HS Wall Thickness (m)", "HS Clear Height (m)", "Unit Storey Height (m)"
+    Normalize units:
+       • Report thicknesses in mm (convert from m if needed)
+       • Keep areas in m2 and volumes in m3
+    Output requirements:
+       • Return a fenced CSV block (```csv ... ```)
+       • Header: No,Clause,Parameter,Min. Irregular HS Countable Area,Unit,Min. Volume (m3),Unit GFA,HS Area,HS Volume,HS Slab Thickness,HS underneath Staircase Waist Thickness,Compliance (Y/N),Reference Drawing
+       • Populate Unit_Area from the unit GFA value; leave cells blank if not present; use numeric values only
+
+DXF TEXT CONTENT (if available):
+{dxf_text}
+
+ANALYSIS INSTRUCTIONS:
+1. **Prioritise the tables** in the drawings. Extract values row by row, matching them to the parameters in the requirement table.
+2. **Understand the requirements** - Interpret each parameter (HS Floor Area, Volume, Height Clearance, Slab Thickness, Waist Thickness, Unobstructed Distance).
+3. **Identify values systematically**:
+   - Use drawing schedules and tables as primary input.
+   - If the HS table lacks slab or waist thickness, scan Sectional Elevations/Sections (Y1, Y2, A-A, B-B) for dimensions (e.g. 300mm) callouts, especially near the HS ceiling/floor, and use those values.
+   - Map "slanted slab thickness" explicitly as the waist thickness value.
+4. **Compare against requirements** - Determine compliance with reasoning.
+5. **Always complete the CSV table row by row**, even if some values are "Not Found".
+
+OUTPUT FORMAT:
+Generate your analysis as a properly formatted CSV table with these exact columns (match header exactly):
+
+No,Clause,Parameter,Min. Irregular HS Countable Area,Unit,Min. Volume (m3),Unit GFA,HS Area,HS Volume,HS Slab Thickness,HS underneath Staircase Waist Thickness,Compliance (Y/N),Reference Drawing
+
+EXAMPLE OUTPUT FORMAT:
+```csv
+No,Clause,Parameter,Min. Irregular HS Countable Area,Unit,Min. Volume (m3),Unit GFA,HS Area,HS Volume,HS Slab Thickness,HS underneath Staircase Waist Thickness,Compliance (Y/N),Reference Drawing
+1,2.10 (a) & (b),HS Floor Area for GFA Under 40,1.08 (3*0.36),m2,3.6,38,1.5,,,Y,"HS Schedule - Drawing HS-53SA-05"
+6,2.10 (c),Waist of Staircase,300,mm,na,,, ,300,N,"Sectional Elevation Y1"

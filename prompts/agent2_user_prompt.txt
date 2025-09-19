@@ -1,0 +1,75 @@
+Extract HS (Household Shelter) data from this architectural drawing and return ONLY CSV format.
+
+WHAT TO LOOK FOR:
+1. Tables/schedules in top-left corner showing HS specifications
+2. Room annotations with HS area (m²) and volume (m³)
+3. Structural details showing slab thickness (mm) and waist thickness (mm)
+4. Staircase sections showing thickness measurements
+
+EXTRACTION TARGETS:
+- HS Area: Look for HS floor area in m² (e.g., 1.5, 2.1, 2.8)
+- HS Volume: Look for HS volume in m³ (e.g., 3.6, 5.4, 7.2)
+- Slab Thickness: Look for ceiling/floor slab in mm (e.g., 150, 200, 300)
+- Waist Thickness: Look for staircase waist in mm (e.g., 150, 200, 300)
+
+REQUIRED OUTPUT - Return ONLY this CSV format with extracted values:
+
+1,2.10(a)&(b),HS Floor Area for GFA Under 40,1.44,1.08 (3*0.36),m2,3.6,na,1.5,3.6,300,300,Y,HS-53SA-05-no-hatch.jpg
+2,2.10(a)&(b),HS Floor Area for 40 < GFA < 45,1.6,1.08 (3*0.36),m2,3.6,na,1.5,3.6,300,300,Y,HS-53SA-05-no-hatch.jpg
+3,2.10(a)&(b),HS Floor Area for 45 < GFA < 75,2.2,1.44 (4*0.36),m2,5.4,na,1.5,3.6,300,300,Y,HS-53SA-05-no-hatch.jpg
+4,2.10(a)&(b),HS Floor Area for 75 < GFA < 140,2.8,1.8 (5*0.36),m2,7.2,na,1.5,3.6,300,300,Y,HS-53SA-05-no-hatch.jpg
+5,2.10(a)&(b),HS Floor Area for GFA above 140,3.4,2.16 (6*0.36),m2,9,na,1.5,3.6,300,300,Y,HS-53SA-05-no-hatch.jpg
+6,2.10(a),Height Clearance Requirement,1500,1500,mm,na,na,na,na,na,na,Y,HS-53SA-05-no-hatch.jpg
+7,2.10(c),HS ceiling slab,300,300,mm,na,na,na,na,300,na,Y,HS-53SA-05-no-hatch.jpg
+8,2.10(c),waist of the staircase,300,300,mm,na,na,na,na,na,300,Y,HS-53SA-05-no-hatch.jpg
+9,2.10(d),unobstructed distance from the HS wall with ventilation sleeve opening,700,700,mm,na,na,na,na,na,na,Y,HS-53SA-05-no-hatch.jpg
+
+CRITICAL RULES:
+- Replace example values (1.5, 3.6, 300) with actual values found in drawing
+- Use "na" for values not found
+- Use "Y" if compliant, "N" if not compliant
+- Return ONLY the CSV lines above - NO explanations, NO other text
+- Do NOT include headers or additional commentary
+  "schema_version": "1.3",
+  "project_meta": {{{{
+    "processed_files": {processed_files},
+    "units_assumed": ["mm","m","m²"]
+  }}}},
+  "drawing_titles": ["<sheet or title 1>", "<title 2>", "..."],
+  "extracted_tables": [
+    {{{{
+      "drawing_title": "<Sheet Name or File>",
+      "table_name": "<Schedule/Legend/Notes if any>",
+      "table_data": [
+        ["<Header1>", "<Header2>", "..."],
+        ["<Row1Col1>", "<Row1Col2>", "..."]
+      ]
+    }}}}
+  ],
+  "compliance_analysis": [
+    {{{{
+      "parameter": "<parameter name from parameters.csv>",
+      "required_value": "<number | range | mapping | expression>",
+      "found_value": "<number | text | 'na'>",
+      "unit": "<unit or 'na'>",
+      "compliance_status": "Compliant | Non-Compliant | Not Found | Not Applicable",
+      "source": "<drawing title> :: <table/notes id> :: <row/col or note ref>",
+      "method": "ocr | dxf_text | inferred",
+      "confidence": 0.00,
+      "notes": "<short rationale incl. unit conversions or tier applied>"
+    }}}}
+  ],
+  "comparisons_header": ["Parameter","Required_Value","Found_Value","Unit","Compliance_Status","Source","Method","Confidence","Notes"],
+  "comparisons_rows": [
+    ["<param>","<req>","<found>","<unit>","<status>","<source>","<method>",0.90,"<notes>"]
+  ],
+  "comparisons_csv": "Parameter,Required_Value,Found_Value,Unit,Compliance_Status,Source,Method,Confidence,Notes\\n..."
+}}}}
+</json_schema>
+
+<examples>
+- Tiered requirement mapping (e.g., HS min area by unit area):
+  If parameters.csv provides a mapping like:
+    "unit area bands": "<40:1.44; 40-45:1.60; 46-75:2.20; 76-140:2.80; >140:3.40"
+  And the found unit area is 50m², then required_value becomes "2.20" before compliance check.
+</examples>

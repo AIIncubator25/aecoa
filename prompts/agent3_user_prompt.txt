@@ -1,0 +1,90 @@
+Generate a comprehensive executive compliance report based on the detailed analysis results provided below.
+
+<compliance_data>
+{compliance_data}
+</compliance_data>
+
+Create a professional executive report with the following structure:
+
+## EXECUTIVE SUMMARY
+- Overall compliance status and key findings (2-3 sentences)
+- Critical risk level assessment (HIGH/MEDIUM/LOW)
+- Primary non-compliance issues requiring immediate attention
+- Business impact summary and recommended actions
+
+## COMPLIANCE DASHBOARD
+- Total parameters assessed: [X]
+- Compliance rate: [X]% ([compliant]/[total assessed])
+- Critical non-compliance items: [X]
+- Missing data requiring investigation: [X]
+- Overall risk level: [HIGH/MEDIUM/LOW]
+
+## DETAILED COMPLIANCE ANALYSIS
+### Compliant Items
+- List compliant parameters with brief validation notes
+- Confirmation of regulatory adherence
+
+### Critical Non-Compliance Issues
+For each non-compliant parameter:
+- **Parameter**: [Name]
+- **Required**: [Value] vs **Found**: [Value]
+- **Gap Analysis**: [Specific deviation and percentage]
+- **Risk Level**: [HIGH/MEDIUM/LOW]
+- **Business Impact**: [Cost, timeline, legal implications]
+- **Source**: [Drawing/document reference]
+
+### Missing Data Analysis
+- Parameters not found in technical drawings
+- Potential reasons for missing data
+- Required documentation or drawing updates
+
+## RISK ASSESSMENT
+### Immediate Risks (0-30 days)
+- Critical compliance failures requiring urgent attention
+- Regulatory exposure and potential penalties
+
+### Medium-term Risks (30-90 days)
+- Design modifications needed
+- Construction delays and cost implications
+
+### Long-term Considerations (90+ days)
+- Strategic compliance improvements
+- Process enhancements for future projects
+
+## RECOMMENDATIONS
+### PRIORITY 1 - IMMEDIATE ACTION REQUIRED
+1. [Specific action item with responsible party and deadline]
+2. [Resource requirements and budget impact]
+
+### PRIORITY 2 - MEDIUM TERM
+1. [Design modifications and approvals needed]
+2. [Documentation and drawing updates]
+
+### PRIORITY 3 - LONG TERM
+1. [Process improvements and preventive measures]
+2. [Training and capability enhancement]
+
+## BUSINESS IMPACT SUMMARY
+### Financial Implications
+- Estimated remediation costs: $[range]
+- Potential delay costs: $[range] 
+- Regulatory penalty exposure: $[range]
+
+### Timeline Impact
+- Design revision timeline: [X] weeks
+- Construction impact: [X] weeks delay potential
+- Approval process requirements: [X] weeks
+
+### Regulatory Compliance Status
+- Building permit implications
+- Inspection and approval requirements
+- Documentation completeness assessment
+
+## NEXT STEPS & ACTION PLAN
+1. **Immediate** (Week 1): [Urgent actions]
+2. **Short-term** (Weeks 2-4): [Design revisions and approvals]
+3. **Medium-term** (Weeks 5-12): [Implementation and verification]
+4. **Follow-up**: [Monitoring and compliance verification]
+
+## CONCLUSION
+[Summary statement with confidence level in analysis and recommendations]

@@ -1,0 +1,10 @@
+No,Clause,Parameter,Min. Rectilinear HS Countable Area,Min. Irregular HS Countable Area,Unit,Min. Volume (m3),Unit Area,HS Area,HS Volume,HS Slab Thickness,HS underneath Staircase Waist Thickness,Compliance Status,Reference Drawing,Notes
+1,2.10 (a) & (b),HS Floor Area for GFA Under 40,1.44,1.08 (3*0.36),m2,3.6,,,,,,,,"AI to identify from drawings"
+2,2.10 (a) & (b),HS Floor Area for 40 < GFA < 45,1.6,1.08 (3*0.36),m2,3.6,,,,,,,,"AI to identify from drawings"
+3,2.10 (a) & (b),HS Floor Area for 45 < GFA < 75,2.2,1.44 (4*0.36),m2,5.4,,,,,,,,"AI to identify from drawings"
+4,2.10 (a) & (b),HS Floor Area for 75 < GFA < 140,2.8,1.8 (5*0.36),m2,7.2,,,,,,,,"AI to identify from drawings"
+5,2.10 (a) & (b),HS Floor Area for GFA above 140,3.4,2.16 (6*0.36),m2,9,,,,,,,,"AI to identify from drawings"
+6,2.10 (a),Height Clearance Requirement,1500,1500,mm,na,,,,,,,,"AI to identify from drawings"
+7,2.10 (c),HS ceiling slab,300,300,mm,na,,,,,,,,"AI to identify from drawings"
+8,2.10 (c),waist of the staircase,300,300,mm,na,,,,,,,,"AI to identify from drawings"
+9,2.10 (d),unobstructed distance from the HS wall with ventilation sleeve opening,700,700,mm,na,,,,,,,,"AI to identify from drawings"

@@ -126,10 +126,48 @@ class call_provider:
     def _dispatch(messages, provider: str, model: str) -> Dict[str, Any]:
         if provider == "Ollama":
             try:
-                payload = {"model": model, "prompt": json.dumps(messages), "stream": False}
-                r = requests.post("http://localhost:11434/api/generate", json=payload, timeout=120)
+                # For Ollama, use the chat completions format for vision models
+                # Use llava model for vision capabilities instead of llama3.2
+                vision_model = "llava:latest" if "llava" not in model.lower() else model
+                
+                # Ollama expects different message format for images
+                # Check if messages contain image data
+                ollama_messages = []
+                for msg in messages:
+                    if isinstance(msg.get("content"), list):
+                        # OpenAI format - convert to Ollama format
+                        text_parts = [item["text"] for item in msg["content"] if item.get("type") == "text"]
+                        image_parts = [item["image_url"]["url"] for item in msg["content"] if item.get("type") == "image_url"]
+                        
+                        content = " ".join(text_parts)
+                        ollama_msg = {"role": msg["role"], "content": content}
+                        
+                        # Add images if present
+                        if image_parts:
+                            # Extract base64 from data URLs
+                            images = []
+                            for img_url in image_parts:
+                                if img_url.startswith("data:image/"):
+                                    base64_part = img_url.split(",")[1]
+                                    images.append(base64_part)
+                            if images:
+                                ollama_msg["images"] = images
+                        
+                        ollama_messages.append(ollama_msg)
+                    else:
+                        # Already in simple format
+                        ollama_messages.append(msg)
+                
+                payload = {
+                    "model": vision_model, 
+                    "messages": ollama_messages,
+                    "stream": False,
+                    "format": "json"  # Request JSON output
+                }
+                r = requests.post("http://localhost:11434/api/chat", json=payload, timeout=120)
                 if r.status_code == 200:
-                    txt = r.json().get("response", "{}")
+                    response_data = r.json()
+                    txt = response_data.get("message", {}).get("content", "{}")
                     try:
                         return json.loads(txt)
                     except Exception:

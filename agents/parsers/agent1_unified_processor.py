@@ -9,6 +9,7 @@ import pandas as pd
 import json
 import re
 import yaml
+import os
 from pathlib import Path
 import zipfile
 import io
@@ -1872,6 +1873,28 @@ Download these files persists across page refreshes until a new file is processe
                             json_data = json.dumps(json_result['json_content'], indent=2)
                             if json_result['jsonlogic_rules']:
                                 jsonlogic_data = json.dumps(json_result['jsonlogic_rules'], indent=2)
+                            
+                            # Save JSON parameters to output folder for Step 2 use
+                            try:
+                                output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'output', 'parameters')
+                                os.makedirs(output_dir, exist_ok=True)
+                                
+                                # Save comprehensive JSON parameters
+                                json_filename = f"{base_filename}_parameters.json"
+                                json_filepath = os.path.join(output_dir, json_filename)
+                                with open(json_filepath, 'w', encoding='utf-8') as f:
+                                    f.write(json_data)
+                                
+                                # Save JsonLogic rules separately if available
+                                if jsonlogic_data:
+                                    jsonlogic_filename = f"{base_filename}_jsonlogic.json"
+                                    jsonlogic_filepath = os.path.join(output_dir, jsonlogic_filename)
+                                    with open(jsonlogic_filepath, 'w', encoding='utf-8') as f:
+                                        f.write(jsonlogic_data)
+                                
+                                st.info(f"✅ JSON parameters saved to output folder: {json_filename}")
+                            except Exception as save_error:
+                                st.warning(f"⚠️ Could not save to output folder: {save_error}")
                         
                         # Create ZIP file for all downloads
                         def create_zip_file():

@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 import json
 from typing import Tuple, Dict, Any
+from ..utils.prompt_manager import load_agent_prompts
 
 # Agent 3's Enhanced Prompts
 DEFAULT_PROMPTS = {
@@ -130,17 +131,19 @@ For each non-compliant parameter:
 class ExecutiveReportGenerator:
     def __init__(self, model: str = "gpt-4o-mini"):
         self.model = model
-        self.prompt = DEFAULT_PROMPTS
+        # Load prompts from files instead of hardcoded
+        self.prompt = load_agent_prompts("agent3")
         
     @classmethod
     def get_default_prompts(cls) -> Dict[str, str]:
         """Get the default prompts for this agent (compatibility with app.py)."""
-        return DEFAULT_PROMPTS.copy()
+        return load_agent_prompts("agent3")
         
     def set_prompts(self, prompts: Dict[str, str]):
         """Set custom prompts for the agent."""
         if "user" in prompts:
-            self.prompt = {"system": prompts.get("system", DEFAULT_PROMPTS["system"]), 
+            default_prompts = load_agent_prompts("agent3")
+            self.prompt = {"system": prompts.get("system", default_prompts["system"]),
                           "user": prompts["user"]}
         else:
             self.prompt = prompts

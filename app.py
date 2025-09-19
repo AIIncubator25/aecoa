@@ -13,7 +13,28 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from datetime import datetime
 from typing import Optional
+import functools
+
+# Enable caching and performance optimizations
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_json_file(file_path):
+    """Cached JSON file loading."""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes  
+def get_file_summary_cached(file_names):
+    """Cached file summary generation."""
+    jpg_png_count = len([f for f in file_names if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+    dxf_count = len([f for f in file_names if f.lower().endswith('.dxf')])
+    return {
+        'total_files': len(file_names),
+        'image_files': jpg_png_count, 
+        'dxf_files': dxf_count,
+        'file_names': file_names
+    }
 
 # Import authentication system
 from agents.auth.auth import StreamlitAuth
@@ -24,8 +45,7 @@ from agents.core.api_key_manager import api_key_manager
 # Import our organized agents
 from agents.parsers.agent1_unified_processor import UnifiedDocumentProcessor
 from agents.analyzers.agent2_drawing_analyzer import DrawingAnalysisAgent
-from agents.reporters.agent3_executive_reporter import ExecutiveReportGenerator
-from agents.reporters.agent4_insights_report import InsightsReportAgent
+from agents.reporters.agent3_combined_reporter import CombinedExecutiveReporter
 
 # Import orchestrator for complex workflows
 from agents.orchestrator import AgenticWorkflowOrchestrator
@@ -34,9 +54,35 @@ from agents.orchestrator import AgenticWorkflowOrchestrator
 DEFAULT_PROMPTS = {
     "agent1_unified_processor": UnifiedDocumentProcessor.get_default_prompts(),
     "agent2_drawing_analyzer": DrawingAnalysisAgent.get_default_prompts(),
-    "agent3_executive_reporter": ExecutiveReportGenerator.get_default_prompts(),
-    "agent4_insights_report": InsightsReportAgent.get_default_prompts()
+    "agent3_combined_reporter": CombinedExecutiveReporter.get_default_prompts()
 }
+
+def get_available_json_parameters():
+    """Get list of available JSON parameter files from output folder."""
+    try:
+        output_dir = os.path.join(os.path.dirname(__file__), 'output', 'parameters')
+        if not os.path.exists(output_dir):
+            return []
+        
+        json_files = []
+        for filename in os.listdir(output_dir):
+            if filename.endswith('_parameters.json'):
+                filepath = os.path.join(output_dir, filename)
+                # Get file modification time for sorting (newest first)
+                mtime = os.path.getmtime(filepath)
+                json_files.append({
+                    'filename': filename,
+                    'filepath': filepath,
+                    'display_name': filename.replace('_parameters.json', ''),
+                    'mtime': mtime
+                })
+        
+        # Sort by modification time (newest first)
+        json_files.sort(key=lambda x: x['mtime'], reverse=True)
+        return json_files
+    except Exception as e:
+        st.error(f"Error reading JSON parameter files: {e}")
+        return []
 
 def get_agent_prompts():
     """Get current agent prompts from session state or defaults."""
@@ -64,8 +110,7 @@ def render_prompt_editor():
         step_mapping = {
             "agent1_unified_processor": "Step 1 - Document Processing",
             "agent2_drawing_analyzer": "Step 2 - Drawing Analysis Agent", 
-            "agent3_executive_reporter": "Step 3 - Executive Report Generator",
-            "agent4_insights_report": "Step 4 - Insights Generator"
+            "agent3_combined_reporter": "Step 3 - Executive Report & Insights Generator"
         }
         agent_display_name = step_mapping.get(agent_name, agent_name.replace('_', ' ').title())
         
@@ -153,7 +198,7 @@ def get_api_key(provider: str) -> Optional[str]:
 def main():
     # Page config
     st.set_page_config(
-        page_title="AEC Compliance Analysis",
+        page_title="AEC Compliance Checks",
         page_icon="🏗️",
         layout="wide"
     )
@@ -308,7 +353,7 @@ def main():
                     elif provider == "GovTech":
                         default_model = "gpt-4o"
                     elif provider == "Ollama":
-                        default_model = "llama3.2:latest"
+                        default_model = "llava:latest"
                     else:
                         default_model = "gpt-4o"
                     
@@ -431,7 +476,7 @@ export {provider.upper()}_API_KEY="your-api-key-here"
             st.markdown("### 🔄 Agent Status")
             st.markdown(f"**Step 1**: Document Processing (YAML + JSON)")
             st.markdown(f"**Step 2**: Drawing Analysis Agent")
-            st.markdown(f"**Step 3**: Executive Report Generator")
+            st.markdown(f"**Step 3**: Executive Report & Insights Generator")
             st.markdown(f"**Provider**: {provider}")
             st.markdown(f"**Model**: {model}")
         
@@ -447,40 +492,370 @@ export {provider.upper()}_API_KEY="your-api-key-here"
         st.subheader("Step 2: Upload Technical Drawings")
         st.markdown("*Upload JPG/PNG/DXF files for compliance analysis against extracted parameters*")
         
+        # JSON Parameter Selection
+        available_json = get_available_json_parameters()
+        selected_json = None
+        
+        # Step 2: Drawing Analysis with flexible JSON parameter options
+        if available_json or True:  # Always show Step 2 options
+            st.markdown("### 📋 Parameter Requirements Source")
+            
+            # Option 1: Select from Step 1 generated files
+            param_source = st.radio(
+                "Choose how to provide requirement parameters:",
+                ["Use JSON from Step 1 (Agent 1)", "Upload custom JSON file", "Provide JSON file path"],
+                key="param_source_option"
+            )
+            
+            selected_json = None
+            
+            if param_source == "Use JSON from Step 1 (Agent 1)":
+                if available_json:
+                    st.markdown("**📋 Select Parameters File from Step 1:**")
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        json_options = [f"{item['display_name']} ({item['filename']})" for item in available_json]
+                        selected_idx = st.selectbox(
+                            "Choose JSON parameters from Step 1 (Agent 1):",
+                            range(len(json_options)),
+                            format_func=lambda i: json_options[i],
+                            key="json_selector"
+                        )
+                        selected_json = available_json[selected_idx]['filepath']
+                    
+                    with col2:
+                        st.metric("Available Files", len(available_json))
+                        
+                else:
+                    st.warning("⚠️ No JSON parameter files found. Complete Step 1 (Agent 1) first to generate parameters.")
+                    st.info("💡 JSON parameters are automatically saved to `output/parameters/` when you process documents in Step 1.")
+            
+            elif param_source == "Upload custom JSON file":
+                uploaded_json = st.file_uploader(
+                    "Upload your custom JSON parameters file:",
+                    type=['json'],
+                    key="custom_json_uploader",
+                    help="Upload a JSON file with parameter templates for compliance analysis"
+                )
+                
+                if uploaded_json:
+                    # Save uploaded file temporarily
+                    temp_json_path = os.path.join("output", "parameters", f"custom_{uploaded_json.name}")
+                    os.makedirs(os.path.dirname(temp_json_path), exist_ok=True)
+                    
+                    with open(temp_json_path, "wb") as f:
+                        f.write(uploaded_json.getvalue())
+                    
+                    selected_json = temp_json_path
+                    st.success(f"✅ Custom JSON file uploaded: {uploaded_json.name}")
+                    
+            elif param_source == "Provide JSON file path":
+                custom_path = st.text_input(
+                    "Enter full path to JSON parameters file:",
+                    placeholder="C:\\path\\to\\your\\parameters.json",
+                    key="custom_json_path"
+                )
+                
+                if custom_path and os.path.exists(custom_path):
+                    selected_json = custom_path
+                    st.success(f"✅ JSON file found: {custom_path}")
+                elif custom_path:
+                    st.error(f"❌ File not found: {custom_path}")
+            
+            # Show JSON file location and allow editing
+            if selected_json:
+                st.markdown("### 📄 Current Requirements File")
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.code(f"📍 Location: {selected_json}", language="text")
+                    
+                with col2:
+                    if st.button("📝 View/Edit JSON", key="view_edit_json"):
+                        st.session_state['show_json_editor'] = True
+                
+                # JSON Editor
+                if st.session_state.get('show_json_editor', False):
+                    with st.expander("📝 JSON Parameters Editor", expanded=True):
+                        try:
+                            with open(selected_json, 'r', encoding='utf-8') as f:
+                                json_content = f.read()
+                            
+                            edited_json = st.text_area(
+                                "Edit JSON parameters (changes will be saved when you click Save):",
+                                value=json_content,
+                                height=300,
+                                key="json_editor"
+                            )
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("💾 Save Changes", key="save_json"):
+                                    try:
+                                        # Validate JSON
+                                        json.loads(edited_json)
+                                        
+                                        # Save changes
+                                        with open(selected_json, 'w', encoding='utf-8') as f:
+                                            f.write(edited_json)
+                                        
+                                        st.success("✅ JSON file updated successfully!")
+                                    except json.JSONDecodeError as e:
+                                        st.error(f"❌ Invalid JSON format: {e}")
+                                        
+                            with col2:
+                                if st.button("❌ Close Editor", key="close_json_editor"):
+                                    st.session_state['show_json_editor'] = False
+                                    st.rerun()
+                                    
+                        except Exception as e:
+                            st.error(f"❌ Error reading JSON file: {e}")
+        else:
+            st.warning("⚠️ No JSON parameter files found. Complete Step 1 first to generate parameters.")
+            st.info("💡 JSON parameters are automatically saved to the output folder when you process documents in Step 1.")
+        
+        ### 🖼️ Drawing Files Upload
+        st.markdown("### 🖼️ Upload Drawing Files")
         drawing_files = st.file_uploader(
-            "Choose drawing files",
+            "Choose drawing files (JPG, PNG, DXF)",
             type=['jpg', 'jpeg', 'png', 'dxf'],
             accept_multiple_files=True,
-            key="drawing_uploader"
+            key="drawing_uploader",
+            help="Upload technical drawings: floor plans, elevations, sections, details, schedules, diagrams"
         )
         
-        if drawing_files:
+        # Custom prompt upload option
+        st.markdown("### 🔧 Analysis Configuration")
+        with st.expander("🧠 AI Analysis Settings", expanded=True):
+            
+            # Analysis mode selection
+            analysis_mode = st.radio(
+                "🎯 Choose Analysis Approach:",
+                [
+                    "🧠 Intelligent AI Analysis (Recommended)", 
+                    "📊 Structured JSON Analysis",
+                    "🎨 Custom Prompts"
+                ],
+                help="Intelligent mode uses AI's natural understanding. JSON mode uses structured parsing. Custom allows full customization.",
+                key="analysis_mode"
+            )
+            
+            if analysis_mode == "🧠 Intelligent AI Analysis (Recommended)":
+                st.info("✨ **AI-Driven Approach**: Leverages AI's intelligence to understand drawings and requirements naturally. AI focuses on visual interpretation and contextual understanding rather than rigid parsing rules.")
+                
+            elif analysis_mode == "📊 Structured JSON Analysis":
+                st.info("🔧 **Structured Approach**: Uses predefined JSON schemas for consistent output formatting. More rigid but predictable.")
+                
+            elif analysis_mode == "🎨 Custom Prompts":
+                st.markdown("**Upload custom prompts to tailor the AI analysis for specific requirements:**")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    custom_system_prompt = st.file_uploader(
+                        "System Prompt File (.txt)",
+                        type=['txt'],
+                        key="custom_system_prompt",
+                        help="Custom system instructions for the AI analyst"
+                    )
+                
+                with col2:
+                    custom_user_prompt = st.file_uploader(
+                        "User Prompt Template (.txt)", 
+                        type=['txt'],
+                        key="custom_user_prompt",
+                        help="Custom task template with requirement details"
+                    )
+                
+                with col3:
+                    custom_output_format = st.file_uploader(
+                        "Output Format Template (.txt/.csv)",
+                        type=['txt', 'csv'],
+                        key="custom_output_format",
+                        help="Custom output format specification or example CSV structure"
+                    )
+                
+                # Custom output format specification
+                st.markdown("**📊 Custom Output Format (Optional):**")
+                output_format_option = st.radio(
+                    "Choose output format customization:",
+                    ["Use default format", "Upload format template", "Define custom format inline"],
+                    key="output_format_option"
+                )
+                
+                custom_format_text = ""
+                if output_format_option == "Define custom format inline":
+                    custom_format_text = st.text_area(
+                        "Define your desired output format:",
+                        placeholder="""Example format instructions:
+- Use table format with columns: No, Clause, Parameter, Required Value, Found Value, Compliance, Reference
+- Include header row with requirements and identified values sections
+- Add compliance status as Y/N instead of Compliant/Non-Compliant
+- Include specific drawing reference for each parameter""",
+                        height=150,
+                        key="custom_format_inline"
+                    )
+                
+                if custom_system_prompt or custom_user_prompt or custom_output_format or custom_format_text:
+                    st.info("💡 Custom prompts and formats will override default analysis instructions")
+        
+        if drawing_files and selected_json:
             # Initialize Agent 2 for file processing
-            agent2 = DrawingAnalysisAgent(model=model)
+            agent2 = DrawingAnalysisAgent(provider=provider, model=model)
             file_summary = agent2.get_file_summary(drawing_files)
             
-            # Show file summary
-            st.info(f"📁 Uploaded: {file_summary['image_files']} image files, {file_summary['dxf_files']} DXF files")
-            if file_summary['dxf_files'] > 0:
-                st.warning("⚠️ DXF files are saved but not yet processed by AI analysis")
+            # Validate requirements JSON (preview UI removed by request)
+            try:
+                with open(selected_json, 'r', encoding='utf-8') as f:
+                    _ = json.load(f)
+            except Exception as e:
+                st.error(f"❌ Error reading JSON requirements: {e}")
+                return
             
-            if st.button("🔍 Analyze Drawings", key="analyze_drawings", use_container_width=True):
-                with st.spinner("Step 2: Analyzing drawings for compliance..."):
-                    # Get custom prompts
-                    prompts = get_agent_prompts()
+            if file_summary['dxf_files'] > 0:
+                # Check if DXF text extraction is available
+                try:
+                    from agents.analyzers.file_handler import DXF_AVAILABLE
+                    if DXF_AVAILABLE:
+                        st.success(f"✅ {file_summary['dxf_files']} DXF file(s) detected - Text extraction enabled for comprehensive analysis")
+                        st.info("💡 DXF files will be processed to extract text, dimensions, and table data for AI analysis")
+                    else:
+                        st.warning("⚠️ DXF files detected but ezdxf library not available - Install ezdxf for enhanced DXF text extraction")
+                except ImportError:
+                    st.warning("⚠️ DXF files will be saved but text extraction is limited - JPG/PNG recommended for best AI analysis")
+            
+            # Analysis button with enhanced functionality
+            if st.button("🔍 Analyze Drawings for Compliance", key="analyze_drawings", use_container_width=True):
+                with st.spinner("🤖 Agent 2: Analyzing drawings against requirements..."):
+                    # Initialize Agent 2 with selected configuration
+                    agent2 = DrawingAnalysisAgent(provider=provider, model=model)
                     
-                    # Set custom prompts if agent supports it
-                    if hasattr(agent2, 'set_prompts'):
-                        agent2.set_prompts(prompts['agent2_drawing_analyzer'])
+                    # Configure analysis mode
+                    if analysis_mode == "🧠 Intelligent AI Analysis (Recommended)":
+                        agent2.set_intelligent_mode(True)
+                        st.info("🧠 Using intelligent AI analysis approach")
+                        
+                    elif analysis_mode == "🎨 Custom Prompts":
+                        # Handle custom prompts
+                        prompts = get_agent_prompts()
+                        
+                        # Load custom prompts if provided
+                        if custom_system_prompt:
+                            custom_sys_content = custom_system_prompt.read().decode('utf-8')
+                            prompts['agent2_drawing_analyzer']['system'] = custom_sys_content
+                            st.info("✅ Using custom system prompt")
+                        
+                        if custom_user_prompt:
+                            custom_user_content = custom_user_prompt.read().decode('utf-8')
+                            prompts['agent2_drawing_analyzer']['user'] = custom_user_content
+                            st.info("✅ Using custom user prompt")
+                        
+                        # Process custom output format
+                        custom_output_instructions = ""
+                        if custom_output_format:
+                            format_content = custom_output_format.read().decode('utf-8')
+                            if custom_output_format.name.endswith('.csv'):
+                                custom_output_instructions = f"""
+**CUSTOM OUTPUT FORMAT (CSV Example Provided):**
+Follow this exact CSV structure:
+```
+{format_content}
+```
+Generate output that matches this format exactly, including headers and column structure.
+"""
+                            else:
+                                custom_output_instructions = f"""
+**CUSTOM OUTPUT FORMAT INSTRUCTIONS:**
+{format_content}
+"""
+                            st.info("✅ Using custom output format template")
+                        elif output_format_option == "Define custom format inline" and custom_format_text:
+                            custom_output_instructions = f"""
+**CUSTOM OUTPUT FORMAT REQUIREMENTS:**
+{custom_format_text}
+
+Follow these specific formatting requirements exactly.
+"""
+                            st.info("✅ Using custom inline format definition")
+                        
+                        # Enhance prompts with detailed requirements context
+                        requirements_context = f"""
+**DETAILED REQUIREMENTS FROM JSON ({os.path.basename(selected_json)}):**
+
+{json.dumps(param_templates, indent=2, ensure_ascii=False, separators=(',', ': '))}
+
+**ANALYSIS TASK:**
+Create a comprehensive comparison table showing:
+1. **Requirements columns:** No, Clause, Parameter, Min. Rectilinear HS Countable Area, Min. Irregular HS Countable Area, Unit, Min. Volume (m3)
+2. **Identified Values columns:** Unit Area, HS Area, HS Volume, HS Slab Thickness, HS underneath Staircase Waist Thickness, Compliance (Y/N), Reference Drawing
+
+Map each requirement to identified values from the drawings, providing specific compliance status and source references.
+
+{custom_output_instructions}
+
+**IMPORTANT:** Return ONLY a valid JSON response. Do not include any explanatory text, markdown formatting, or code blocks.
+"""
+                        
+                        # Inject requirements into user prompt
+                        if '{param_context}' in prompts['agent2_drawing_analyzer']['user']:
+                            prompts['agent2_drawing_analyzer']['user'] = prompts['agent2_drawing_analyzer']['user'].replace(
+                                '{param_context}', requirements_context
+                            )
+                        
+                        # Set enhanced prompts
+                        if hasattr(agent2, 'set_prompts'):
+                            agent2.set_prompts(prompts['agent2_drawing_analyzer'])
                     
-                    # Process drawings using agent method
-                    processing_result = agent2.process_drawing_files(drawing_files, "parameters.csv", api_key)
+                    else:  # Structured JSON Analysis
+                        # Use default structured approach
+                        prompts = get_agent_prompts()
+                        requirements_context = f"""
+**DETAILED REQUIREMENTS FROM JSON ({os.path.basename(selected_json)}):**
+
+{json.dumps(param_templates, indent=2, ensure_ascii=False, separators=(',', ': '))}
+
+**ANALYSIS TASK:**
+Create a comprehensive comparison table showing:
+1. **Requirements columns:** No, Clause, Parameter, Min. Rectilinear HS Countable Area, Min. Irregular HS Countable Area, Unit, Min. Volume (m3)
+2. **Identified Values columns:** Unit Area, HS Area, HS Volume, HS Slab Thickness, HS underneath Staircase Waist Thickness, Compliance (Y/N), Reference Drawing
+
+Map each requirement to identified values from the drawings, providing specific compliance status and source references.
+
+**IMPORTANT:** Return ONLY a valid JSON response. Do not include any explanatory text, markdown formatting, or code blocks.
+"""
+                        
+                        if '{param_context}' in prompts['agent2_drawing_analyzer']['user']:
+                            prompts['agent2_drawing_analyzer']['user'] = prompts['agent2_drawing_analyzer']['user'].replace(
+                                '{param_context}', requirements_context
+                            )
+                        
+                        if hasattr(agent2, 'set_prompts'):
+                            agent2.set_prompts(prompts['agent2_drawing_analyzer'])
+                    
+                    # Process drawings using JSON parameters file
+                    processing_result = agent2.process_drawing_files(drawing_files, selected_json, api_key)
                     
                     if processing_result['analysis_success']:
                         analysis_result = processing_result['analysis_result']
                         st.session_state.comparisons_df = analysis_result['comparisons_df']
                         st.session_state.step2_completed = True
-                        st.success(f"✅ Drawing analysis completed using {analysis_result.get('method', 'Unknown')} method")
+                        
+                        # Save analysis results to output folder
+                        try:
+                            output_dir = os.path.join(os.path.dirname(__file__), 'output', 'analysis')
+                            os.makedirs(output_dir, exist_ok=True)
+                            
+                            # Save comparisons CSV
+                            param_name = os.path.basename(selected_json).replace('_parameters.json', '')
+                            results_filename = f"{param_name}_drawing_analysis.csv"
+                            results_filepath = os.path.join(output_dir, results_filename)
+                            analysis_result['comparisons_df'].to_csv(results_filepath, index=False)
+                            
+                            st.success(f"✅ Drawing analysis completed using {analysis_result.get('method', 'Unknown')} method")
+                            st.info(f"📁 Results saved to: {results_filename}")
+                        except Exception as save_error:
+                            st.warning(f"⚠️ Could not save analysis results: {save_error}")
+                        
                         st.info(analysis_result.get('info', ''))
                         
                         # Show drawing titles if available
@@ -490,61 +865,253 @@ export {provider.upper()}_API_KEY="your-api-key-here"
                                 st.markdown(f"- {title}")
                     else:
                         st.error(f"❌ Drawing analysis failed: {processing_result.get('error')}")
+        elif drawing_files and not selected_json:
+            # Allow direct JPG processing with full 2.10 HS parameters if available
+            full_params_json = os.path.join(os.path.dirname(__file__), 'output', 'parameters', '2.10_HS_parameters.json')
+            default_params_csv = "hs_parameters.csv"
+            
+            if os.path.exists(full_params_json):
+                st.info("💡 **Enhanced Processing Mode**: Using complete 2.10 HS parameters for comprehensive analysis")
+                parameters_file = full_params_json
+                
+                # Validate full parameters JSON (preview UI removed by request)
+                try:
+                    with open(full_params_json, 'r', encoding='utf-8') as f:
+                        _ = json.load(f)
+                except Exception as e:
+                    st.warning(f"Could not load full parameters: {e}. Using default parameters.")
+                    parameters_file = default_params_csv
+                    st.info("💡 **Direct Processing Mode**: Using default HS parameters for analysis")
+            else:
+                st.info("💡 **Direct Processing Mode**: Using default HS parameters for analysis")
+                parameters_file = default_params_csv
+            
+            # Show option to proceed with analysis
+            if st.button("🚀 Analyze with HS Parameters", key="direct_analyze", use_container_width=True):
+                with st.spinner("🤖 Agent 2: Analyzing drawings with HS parameters..."):
+                    # Initialize Agent 2
+                    agent2 = DrawingAnalysisAgent(provider=provider, model=model)
+                    
+                    if analysis_mode == "🧠 Intelligent AI Analysis (Recommended)":
+                        agent2.set_intelligent_mode(True)
+                        st.info("🧠 Using intelligent AI analysis approach")
+                    
+                    # Process drawings with HS parameters
+                    processing_result = agent2.process_drawing_files(drawing_files, parameters_file, api_key)
+                    
+                    if processing_result['analysis_success']:
+                        analysis_result = processing_result['analysis_result']
+                        st.session_state.comparisons_df = analysis_result['comparisons_df']
+                        st.session_state.step2_completed = True
+                        
+                        # Save analysis results
+                        try:
+                            output_dir = os.path.join(os.path.dirname(__file__), 'output', 'analysis')
+                            os.makedirs(output_dir, exist_ok=True)
+                            
+                            # Save comparisons CSV
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            results_filename = f"hs_drawing_analysis_{timestamp}.csv"
+                            results_filepath = os.path.join(output_dir, results_filename)
+                            analysis_result['comparisons_df'].to_csv(results_filepath, index=False)
+                            
+                            st.success(f"✅ Drawing analysis completed using {analysis_result.get('method', 'AI Analysis')} method")
+                            st.info(f"📁 Results saved to: {results_filename}")
+                            
+                            # Show file summary
+                            file_summary = agent2.get_file_summary(drawing_files)
+                            st.info(f"📁 Processed: {file_summary['image_files']} images, {file_summary['dxf_files']} DXF files")
+                            
+                        except Exception as save_error:
+                            st.warning(f"⚠️ Could not save analysis results: {save_error}")
+                        
+                        st.info(analysis_result.get('info', 'Analysis completed successfully'))
+                        
+                    else:
+                        st.error(f"❌ Drawing analysis failed: {processing_result.get('error')}")
+            
+            # Show parameters being used
+            if os.path.exists(full_params_json):
+                st.markdown("**📋 Complete 2.10 HS Requirements Being Used:**")
+                st.info("""
+                ✅ **Comprehensive Analysis Including:**
+                - **HS Minimum Area Requirements** (5 GFA-based tiers: 1.44-3.4 m²)
+                - HS Volume calculations (3.6-9.0 m³)
+                - Height Clearance Requirements (≥1500mm)
+                - **HS Ceiling Slab Thickness (≥300mm)** 
+                - **Waist of Staircase Thickness (≥300mm)** ⭐
+                - **HS Wall Thickness (≥200mm)** 🧱
+                - Ventilation Sleeve Wall Clearance (≥700mm)
+                - GFA-based compliance validation
+                - Complete structural adequacy matrix
+                """)
+            else:
+                st.markdown("**📋 Default HS Parameters Being Used:**")
+                st.info("""
+                - HS Floor Area (clear height ≥ 1500mm): 2.20 m²
+                - HS Enclosed Volume: 5.4 m³  
+                - HS Ceiling Slab Thickness: 300 mm
+                - **Waist of Staircase Thickness: 300 mm** ⭐
+                - Ventilation Sleeve Wall Clearance: 700 mm
+                """)
+        else:
+            st.warning("⚠️ Please upload JPG/DXF files to proceed with analysis.")
     
         # Display compliance comparison if Step 2 completed
         if st.session_state.step2_completed and st.session_state.comparisons_df is not None:
-            st.subheader("🔍 Compliance Comparison Results")
+            st.markdown("---")
+            st.subheader("� Requirements vs Identified Values Analysis")
             
             # Get compliance metrics using agent method
             agent2 = DrawingAnalysisAgent()
             metrics = agent2.get_compliance_metrics(st.session_state.comparisons_df)
             
+            # Enhanced metrics display
+            st.markdown("### 📈 Compliance Summary")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Total Parameters", metrics['total_parameters'])
             with col2:
-                st.metric("Compliant", metrics['compliant'], delta=f"{metrics['compliance_rate']:.1f}%")
+                compliant_color = "normal" if metrics['compliant'] > 0 else "off"
+                st.metric("✅ Compliant", metrics['compliant'], 
+                         delta=f"{metrics['compliance_rate']:.1f}%", 
+                         delta_color=compliant_color)
             with col3:
-                st.metric("Non-Compliant", metrics['non_compliant'], delta=f"-{metrics['non_compliance_rate']:.1f}%")
+                non_compliant_color = "inverse" if metrics['non_compliant'] > 0 else "off"
+                st.metric("❌ Non-Compliant", metrics['non_compliant'], 
+                         delta=f"{metrics['non_compliance_rate']:.1f}%", 
+                         delta_color=non_compliant_color)
             with col4:
-                st.metric("Not Found", metrics['not_found'], delta=f"{metrics['not_found_rate']:.1f}%")
+                not_found_color = "inverse" if metrics['not_found'] > 0 else "off"
+                st.metric("❓ Not Found", metrics['not_found'], 
+                         delta=f"{metrics['not_found_rate']:.1f}%", 
+                         delta_color=not_found_color)
             
-            # Full comparison table
-            st.dataframe(st.session_state.comparisons_df, use_container_width=True, hide_index=True)
+            # Compliance status indicator
+            if metrics['compliance_rate'] >= 90:
+                st.success(f"🎉 Excellent compliance rate: {metrics['compliance_rate']:.1f}%")
+            elif metrics['compliance_rate'] >= 75:
+                st.info(f"✅ Good compliance rate: {metrics['compliance_rate']:.1f}%")
+            elif metrics['compliance_rate'] >= 50:
+                st.warning(f"⚠️ Moderate compliance rate: {metrics['compliance_rate']:.1f}%")
+            else:
+                st.error(f"🚨 Low compliance rate: {metrics['compliance_rate']:.1f}%")
             
-            # Download button
-            csv_data = st.session_state.comparisons_df.to_csv(index=False)
-            st.download_button(
-                "📥 Download comparisons.csv",
-                csv_data,
-                "comparisons.csv",
-                "text/csv",
-                use_container_width=True
-            )
+            # Enhanced comparison table display
+            st.markdown("### 📋 Detailed Compliance Table")
+            
+            # Apply conditional formatting to compliance column
+            def highlight_compliance(val):
+                if val == 'Y':
+                    return 'background-color: #d4edda; color: #155724;'  # Green
+                elif val == 'N':
+                    return 'background-color: #f8d7da; color: #721c24;'  # Red
+                else:
+                    return 'background-color: #fff3cd; color: #856404;'  # Yellow
+            
+            # Style the dataframe
+            styled_df = st.session_state.comparisons_df.copy()
+            if 'Compliance (Y/N)' in styled_df.columns:
+                st.dataframe(
+                    styled_df.style.applymap(
+                        highlight_compliance, 
+                        subset=['Compliance (Y/N)']
+                    ),
+                    use_container_width=True, 
+                    hide_index=True,
+                    height=400
+                )
+            else:
+                st.dataframe(
+                    styled_df, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    height=400
+                )
+            
+            # Enhanced download options
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                csv_data = st.session_state.comparisons_df.to_csv(index=False)
+                st.download_button(
+                    "📥 Download Compliance Table (CSV)",
+                    csv_data,
+                    f"compliance_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
+            
+            with col2:
+                # Filter for non-compliant items
+                if 'Compliance (Y/N)' in styled_df.columns:
+                    non_compliant_df = styled_df[styled_df['Compliance (Y/N)'] == 'N']
+                    if not non_compliant_df.empty:
+                        non_compliant_csv = non_compliant_df.to_csv(index=False)
+                        st.download_button(
+                            "⚠️ Download Non-Compliant Items",
+                            non_compliant_csv,
+                            f"non_compliant_items_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            "text/csv",
+                            use_container_width=True
+                        )
+                    else:
+                        st.success("✅ No non-compliant items!")
+            
+            with col3:
+                # Show summary stats
+                with st.popover("📊 View Statistics"):
+                    st.write("**Compliance Breakdown:**")
+                    st.write(f"- Total items: {metrics['total_parameters']}")
+                    st.write(f"- Compliant: {metrics['compliant']} ({metrics['compliance_rate']:.1f}%)")
+                    st.write(f"- Non-compliant: {metrics['non_compliant']} ({metrics['non_compliance_rate']:.1f}%)")
+                    st.write(f"- Not found: {metrics['not_found']} ({metrics['not_found_rate']:.1f}%)")
+            
+            # Analysis insights
+            if metrics['non_compliant'] > 0 or metrics['not_found'] > 0:
+                with st.expander("🔍 Analysis Insights & Recommendations", expanded=False):
+                    if metrics['non_compliant'] > 0:
+                        st.warning(f"**{metrics['non_compliant']} non-compliant items identified:**")
+                        st.markdown("- Review design specifications against building requirements")
+                        st.markdown("- Consider design modifications to meet compliance standards")
+                        st.markdown("- Consult with relevant authorities for clarification if needed")
+                    
+                    if metrics['not_found'] > 0:
+                        st.info(f"**{metrics['not_found']} items could not be identified in drawings:**")
+                        st.markdown("- Verify if missing information exists in other drawing sheets")
+                        st.markdown("- Consider requesting additional drawing details from design team")
+                        st.markdown("- May require site verification or additional documentation")
             
             # Step 3: Executive Report
             st.markdown("---")
-            st.subheader("Step 3: Generate Executive Report")
-            st.markdown("*Generate comprehensive insights and recommendations based on compliance analysis*")
+            st.subheader("Step 3: Generate Executive Report & Insights")
+            st.markdown("*Generate comprehensive executive report and business insights based on compliance analysis*")
             
-            if st.button("📊 Generate Executive Report", key="generate_report", use_container_width=True):
+            if st.button("📊 Generate Executive Report & Insights", key="generate_report", use_container_width=True):
                 with st.spinner("Step 3: Generating executive report and insights..."):
                     # Initialize Agent 3 with custom prompts
                     prompts = get_agent_prompts()
-                    agent3 = ExecutiveReportGenerator(model=model)
+                    agent3 = CombinedExecutiveReporter(model=model)
                     
                     # Set custom prompts if agent supports it
                     if hasattr(agent3, 'set_prompts'):
-                        agent3.set_prompts(prompts['agent3_executive_reporter'])
+                        agent3.set_prompts(prompts.get('agent3_combined_reporter', {}))
                     
                     # Process compliance report using agent method
-                    processing_result = agent3.process_compliance_report("comparisons.csv", api_key)
+                    processing_result = agent3.process_compliance_report("output/comparison.csv", api_key)
                     
-                    if processing_result['report_success']:
+                    if processing_result['report_success'] and processing_result['insights_success']:
+                        st.session_state.executive_report = processing_result['report_content']
+                        st.session_state.insights_content = processing_result['insights_content']
+                        st.session_state.report_summary = processing_result['report_summary']
+                        st.session_state.step3_completed = True
+                        st.success("✅ Executive report and insights generated successfully")
+                    elif processing_result['report_success']:
                         st.session_state.executive_report = processing_result['report_content']
                         st.session_state.report_summary = processing_result['report_summary']
                         st.session_state.step3_completed = True
-                        st.success("✅ Executive report generated successfully")
+                        st.warning("⚠️ Executive report generated but insights failed: " + 
+                                   processing_result.get('error', 'Unknown error'))
                     else:
                         st.error(f"❌ Report generation failed: {processing_result.get('error')}")
         
@@ -557,6 +1124,29 @@ export {provider.upper()}_API_KEY="your-api-key-here"
             if hasattr(st.session_state, 'report_summary'):
                 with st.expander("📈 Summary Statistics", expanded=False):
                     st.json(st.session_state.report_summary)
+            
+            # Display insights if available
+            if hasattr(st.session_state, 'insights_content'):
+                st.subheader("💡 Detailed Compliance Insights")
+                
+                # Check if executive_insights.csv exists and display it, fallback to insights.csv
+                executive_insights_path = "output/executive_insights.csv"
+                insights_path = "output/insights.csv"
+                
+                if os.path.exists(executive_insights_path):
+                    st.subheader("Structured Compliance Analysis")
+                    insights_df = pd.read_csv(executive_insights_path)
+                    st.dataframe(insights_df, use_container_width=True)
+                elif os.path.exists(insights_path):
+                    st.subheader("Compliance Metrics")
+                    insights_df = pd.read_csv(insights_path)
+                    st.dataframe(insights_df, use_container_width=True)
+                else:
+                    st.warning("Insights CSV file not found.")
+                
+                # Display raw insights content in expander
+                with st.expander("Raw Insights Data", expanded=False):
+                    st.code(st.session_state.insights_content)
         
         # Footer
         st.markdown("---")

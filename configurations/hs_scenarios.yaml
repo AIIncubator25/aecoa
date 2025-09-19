@@ -1,0 +1,232 @@
+# Household Shelter (HS) Scenario Configurations
+# This file defines different HS compliance scenarios for scalability
+
+scenarios:
+  
+  # Standard residential HS requirements
+  residential_standard:
+    name: "Residential Standard HS"
+    description: "Standard household shelter requirements for residential buildings"
+    gfa_categories:
+      - name: "GFA Under 40"
+        min_gfa: 0
+        max_gfa: 40
+        min_rectilinear_area: 1.44
+        min_irregular_area: 1.08
+        min_volume: 3.6
+      - name: "GFA 40-45"
+        min_gfa: 40
+        max_gfa: 45
+        min_rectilinear_area: 1.6
+        min_irregular_area: 1.08
+        min_volume: 3.6
+      - name: "GFA 45-75"
+        min_gfa: 45
+        max_gfa: 75
+        min_rectilinear_area: 2.2
+        min_irregular_area: 1.44
+        min_volume: 5.4
+      - name: "GFA 75-140"
+        min_gfa: 75
+        max_gfa: 140
+        min_rectilinear_area: 2.8
+        min_irregular_area: 1.8
+        min_volume: 7.2
+      - name: "GFA Above 140"
+        min_gfa: 140
+        max_gfa: 999999
+        min_rectilinear_area: 3.4
+        min_irregular_area: 2.16
+        min_volume: 9.0
+    common_requirements:
+      height_clearance: 1500  # mm
+      slab_thickness: 300     # mm
+      waist_thickness: 300    # mm
+      ventilation_clearance: 700  # mm
+    table_patterns:
+      - "DATA OF HOUSEHOLD SHELTER"
+      - "HS SCHEDULE"
+      - "SHELTER REQUIREMENTS"
+      - "HOUSEHOLD SHELTER DATA"
+    measurement_units:
+      area: "m²"
+      volume: "m³"
+      length: "mm"
+  
+  # High-density residential (e.g., HDB flats)
+  hdb_standard:
+    name: "HDB Standard HS"
+    description: "HDB flat household shelter requirements"
+    gfa_categories:
+      - name: "1-Room Flat"
+        min_gfa: 0
+        max_gfa: 30
+        min_rectilinear_area: 1.2
+        min_irregular_area: 0.9
+        min_volume: 3.0
+      - name: "2-Room Flat"
+        min_gfa: 30
+        max_gfa: 50
+        min_rectilinear_area: 1.8
+        min_irregular_area: 1.35
+        min_volume: 4.5
+      - name: "3-Room Flat"
+        min_gfa: 50
+        max_gfa: 75
+        min_rectilinear_area: 2.2
+        min_irregular_area: 1.65
+        min_volume: 5.5
+      - name: "4-Room Flat"
+        min_gfa: 75
+        max_gfa: 100
+        min_rectilinear_area: 2.8
+        min_irregular_area: 2.1
+        min_volume: 7.0
+      - name: "5-Room+ Flat"
+        min_gfa: 100
+        max_gfa: 999999
+        min_rectilinear_area: 3.4
+        min_irregular_area: 2.55
+        min_volume: 8.5
+    common_requirements:
+      height_clearance: 1500  # mm
+      slab_thickness: 250     # mm (thinner for HDB)
+      waist_thickness: 250    # mm
+      ventilation_clearance: 600  # mm
+    table_patterns:
+      - "HDB HOUSEHOLD SHELTER"
+      - "FLAT HS DATA"
+      - "UNIT SHELTER INFO"
+    measurement_units:
+      area: "m²"
+      volume: "m³"
+      length: "mm"
+  
+  # Commercial mixed-use buildings
+  commercial_mixed:
+    name: "Commercial Mixed-Use HS"
+    description: "Mixed-use building with residential units"
+    gfa_categories:
+      - name: "Small Unit"
+        min_gfa: 0
+        max_gfa: 50
+        min_rectilinear_area: 1.8
+        min_irregular_area: 1.35
+        min_volume: 4.5
+      - name: "Medium Unit"
+        min_gfa: 50
+        max_gfa: 100
+        min_rectilinear_area: 2.8
+        min_irregular_area: 2.1
+        min_volume: 7.0
+      - name: "Large Unit"
+        min_gfa: 100
+        max_gfa: 200
+        min_rectilinear_area: 3.8
+        min_irregular_area: 2.85
+        min_volume: 9.5
+      - name: "Penthouse Unit"
+        min_gfa: 200
+        max_gfa: 999999
+        min_rectilinear_area: 4.5
+        min_irregular_area: 3.38
+        min_volume: 11.25
+    common_requirements:
+      height_clearance: 1600  # mm (higher for premium)
+      slab_thickness: 350     # mm (thicker for commercial grade)
+      waist_thickness: 350    # mm
+      ventilation_clearance: 750  # mm
+    table_patterns:
+      - "RESIDENTIAL UNIT SHELTER"
+      - "MIXED-USE HS DATA"
+      - "SHELTER SPECIFICATIONS"
+    measurement_units:
+      area: "m²"
+      volume: "m³"
+      length: "mm"
+  
+  # International projects (metric variations)
+  international_metric:
+    name: "International Metric HS"
+    description: "International projects with different measurement conventions"
+    gfa_categories:
+      - name: "Small Dwelling"
+        min_gfa: 0
+        max_gfa: 45
+        min_rectilinear_area: 1.5
+        min_irregular_area: 1.125
+        min_volume: 3.75
+      - name: "Medium Dwelling"
+        min_gfa: 45
+        max_gfa: 85
+        min_rectilinear_area: 2.4
+        min_irregular_area: 1.8
+        min_volume: 6.0
+      - name: "Large Dwelling"
+        min_gfa: 85
+        max_gfa: 150
+        min_rectilinear_area: 3.2
+        min_irregular_area: 2.4
+        min_volume: 8.0
+      - name: "Extra Large Dwelling"
+        min_gfa: 150
+        max_gfa: 999999
+        min_rectilinear_area: 4.0
+        min_irregular_area: 3.0
+        min_volume: 10.0
+    common_requirements:
+      height_clearance: 1500  # mm
+      slab_thickness: 300     # mm
+      waist_thickness: 300    # mm
+      ventilation_clearance: 700  # mm
+    table_patterns:
+      - "DWELLING SHELTER DATA"
+      - "HOUSEHOLD PROTECTION"
+      - "SHELTER REQUIREMENTS"
+      - "RESIDENTIAL SHELTER"
+    measurement_units:
+      area: "m²"
+      volume: "m³"
+      length: "mm"
+
+# Default scenario if none specified
+default_scenario: "residential_standard"
+
+# Flexible pattern matching for different drawing styles
+drawing_conventions:
+  table_headers:
+    area_patterns:
+      - "AREA"
+      - "FLOOR AREA"
+      - "GFA"
+      - "GROSS FLOOR AREA"
+      - "UNIT AREA"
+    volume_patterns:
+      - "VOLUME"
+      - "VOL"
+      - "CUBIC METRES"
+      - "M3"
+      - "M³"
+    thickness_patterns:
+      - "THICKNESS"
+      - "THK"
+      - "SLAB"
+      - "CEILING"
+      - "WAIST"
+    unit_patterns:
+      - "UNIT"
+      - "APT"
+      - "APARTMENT"
+      - "FLAT"
+      - "DWELLING"
+
+# Analysis prompts can reference scenarios
+analysis_guidance:
+  flexible_requirements: |
+    The HS requirements may vary based on the project scenario:
+    - Standard residential projects typically use the residential_standard configuration
+    - HDB flats may have different GFA categories and thinner slabs
+    - Commercial mixed-use buildings may have higher clearance requirements
+    - International projects may use different measurement conventions
+    
+    Always adapt your analysis to the specific project requirements provided.
